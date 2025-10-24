@@ -51,10 +51,8 @@ export function isAuthenticated(): boolean {
 }
 
 export async function login(username: string, password: string): Promise<User> {
-  const response = await apiRequest<AuthResponse>("/auth/login", {
-    method: "POST",
-    body: JSON.stringify({ username, password }),
-  });
+  const res = await apiRequest("POST", "/api/auth/login", { username, password });
+  const response: AuthResponse = await res.json();
 
   setToken(response.token);
   setUser(response.user);
@@ -63,10 +61,8 @@ export async function login(username: string, password: string): Promise<User> {
 }
 
 export async function register(username: string, email: string, password: string, role: string): Promise<User> {
-  const response = await apiRequest<AuthResponse>("/auth/register", {
-    method: "POST",
-    body: JSON.stringify({ username, email, password, role, unitId: null, active: true }),
-  });
+  const res = await apiRequest("POST", "/api/auth/register", { username, email, password, role, unitId: null, active: true });
+  const response: AuthResponse = await res.json();
 
   setToken(response.token);
   setUser(response.user);

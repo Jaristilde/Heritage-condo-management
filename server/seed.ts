@@ -191,6 +191,17 @@ async function seed() {
       status: unitData.unitNumber === "308" ? "deceased" : "active",
     });
 
+    // Create owner user account for each unit (for login)
+    const ownerPassword = await hashPassword("password123");
+    await storage.createUser({
+      username: `owner${unitData.unitNumber}`,
+      password: ownerPassword,
+      email: `${unitData.unitNumber}@heritage-hoa.com`,
+      role: "owner",
+      unitId: unit.id,
+      active: true,
+    });
+
     if (unitData.unitNumber === "202" || unitData.unitNumber === "203") {
       await storage.createPaymentPlan({
         unitId: unit.id,
@@ -234,6 +245,7 @@ async function seed() {
   console.log("\nDefault login credentials:");
   console.log("Board: username: board, password: board123");
   console.log("Management: username: management, password: management123");
+  console.log("Owners: username: owner101, owner201, owner202... owner408, password: password123");
 }
 
 seed().catch((error) => {
