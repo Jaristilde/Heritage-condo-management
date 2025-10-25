@@ -11,6 +11,7 @@ import { useState, useEffect } from "react";
 import { isAuthenticated, getUser, logout } from "./lib/auth";
 import NotFound from "@/pages/not-found";
 import Login from "@/pages/login";
+import Diagnostic from "@/pages/diagnostic";
 import BoardDashboardVisual from "@/pages/board-dashboard-visual";
 import OwnerDashboard from "@/pages/owner-dashboard";
 import Units from "@/pages/units";
@@ -140,6 +141,7 @@ function Router() {
   return (
     <Switch>
       <Route path="/login" component={Login} />
+      <Route path="/diagnostic" component={Diagnostic} />
       <Route>
         {() => isAuthenticated() ? <AuthenticatedLayout /> : <Redirect to="/login" />}
       </Route>
