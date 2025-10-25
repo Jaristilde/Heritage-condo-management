@@ -1,0 +1,339 @@
+🚨 CRITICAL BUG FIX - LOGIN SYSTEM BROKEN
+I can see the problem! Your Replit app is having authentication errors. Let me diagnose and fix this immediately.
+🔍 DIAGNOSIS FROM YOUR SCREENSHOTS:
+Errors visible:
+❌ 40 errors
+❌ Failed to load resource: the server responded with a status of 401 ()
+❌ The message port closed before a response was received
+❌ A Listener indicated an asynchronous response by returning true, 
+   but the message channel closed before a response was received
+What's happening:
+Login page loads ✅
+Username: board entered ✅
+Password: entered ✅
+Click "Sign in" → 401 Unauthorized error ❌
+"Login failed - Invalid username or password" ❌
+🎯 COPY THIS MEGA PROMPT TO REPLIT AGENT:
+PROMPT:
+"URGENT: The login system is completely broken. Users cannot sign in. I'm getting 401 errors and 'Invalid username or password' messages even with correct credentials.
+ISSUE DETAILS:
+Console Errors:
+401 Unauthorized on /api/auth/callback/credentials
+Message port closed before response received
+Multiple failed resource loads
+What's NOT working:
+Login with username board and password board123
+Authentication callback failing
+Session not being created
+What IS working:
+Login page loads
+Form submission triggers
+Database connection (app starts)
+ROOT CAUSE ANALYSIS:
+The issue is likely ONE of these:
+NextAuth configuration broken - credentials provider not set up correctly
+Database schema missing - no users table or wrong structure
+Password hashing issue - bcrypt comparison failing
+Environment variables missing - NEXTAUTH_SECRET or NEXTAUTH_URL wrong
+API route not found - /api/auth/[...nextauth]/route.ts missing or broken
+IMMEDIATE FIX REQUIRED:
+Please follow these steps IN ORDER:
+STEP 1: Verify Database Has Users
+Check if the users table exists and has demo accounts:
+sql
+-- Run this in Supabase SQL editor or database terminal
+SELECT * FROM users WHERE username = 'board';
+```
+
+**Expected result:**
+```
+id | username | email | password_hash | role | created_at
+---|----------|-------|---------------|------|------------
+1  | board    | board@heritage.com | $2a$10$... | board | 2025-01-01...
+If NO users found:
+Run this SQL to create demo accounts:
+sql
+-- Create users table if it doesn't exist
+CREATE TABLE IF NOT EXISTS users (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  username TEXT UNIQUE NOT NULL,
+  email TEXT UNIQUE NOT NULL,
+  password_hash TEXT NOT NULL,
+  role TEXT NOT NULL CHECK (role IN ('board', 'owner', 'management')),
+  first_name TEXT,
+  last_name TEXT,
+  unit_number TEXT,
+  phone TEXT,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Insert demo accounts with CORRECT password hashes
+-- Password for all: board123, management123, owner201
+
+-- Board account
+INSERT INTO users (username, email, password_hash, role, first_name, last_name)
+VALUES (
+  'board',
+  'board@heritage.com',
+  '$2a$10$YourHashedPasswordHere',
+  'board',
+  'Board',
+  'Member'
+) ON CONFLICT (username) DO NOTHING;
+
+-- Management account  
+INSERT INTO users (username, email, password_hash, role, first_name, last_name)
+VALUES (
+  'management',
+  'management@heritage.com',
+  '$2a$10$YourHashedPasswordHere',
+  'management',
+  'Property',
+  'Manager'
+) ON CONFLICT (username) DO NOTHING;
+
+-- Owner account
+INSERT INTO users (username, email, password_hash, role, first_name, last_name, unit_number)
+VALUES (
+  'owner201',
+  'owner201@heritage.com',
+  '$2a$10$YourHashedPasswordHere',
+  'owner',
+  'Jose',
+  'Peirats',
+  '201'
+) ON CONFLICT (username) DO NOTHING;
+WAIT! We need to generate proper password hashes first.
+STEP 2: Generate Password Hashes
+Create a file /scripts/hashPasswords.ts:
+```typescript
+import bcrypt from 'bcryptjs';
+async function generateHashes() {
+const passwords = {
+board: 'board123',
+management: 'management123',
+owner201: 'password123'
+};
+for (const [username, password] of Object.entries(passwords)) {
+const hash = await bcrypt.hash(password, 10);
+console.log(`${username}: ${hash}`);
+}
+}
+generateHashes();
+```
+Run it:
+bash
+npx ts-node scripts/hashPasswords.ts
+Copy the output hashes and use them in the SQL INSERT statements above.
+STEP 3: Fix NextAuth Configuration
+Verify /app/api/auth/[...nextauth]/route.ts exists and looks like this:
+```typescript
+import NextAuth from 'next-auth';
+import CredentialsProvider from 'next-auth/providers/credentials';
+import { compare } from 'bcryptjs';
+import { db } from '@/lib/db';
+const handler = NextAuth({
+providers: [
+CredentialsProvider({
+name: 'Credentials',
+credentials: {
+username: { label: 'Username', type: 'text' },
+password: { label: 'Password', type: 'password' }
+},
+async authorize(credentials) {
+if (!credentials?.username || !credentials?.password) {
+throw new Error('Missing credentials');
+}
+    // Find user in database
+    const user = await db.query(
+      'SELECT * FROM users WHERE username = $1',
+      [credentials.username]
+    );
+
+    if (!user.rows[0]) {
+      throw new Error('Invalid username or password');
+    }
+
+    // Verify password
+    const isValid = await compare(
+      credentials.password,
+      user.rows[0].password_hash
+    );
+
+    if (!isValid) {
+      throw new Error('Invalid username or password');
+    }
+
+    // Return user object
+    return {
+      id: user.rows[0].id,
+      username: user.rows[0].username,
+      email: user.rows[0].email,
+      role: user.rows[0].role,
+      firstName: user.rows[0].first_name,
+      lastName: user.rows[0].last_name,
+      unitNumber: user.rows[0].unit_number
+    };
+  }
+})
+],
+callbacks: {
+async jwt({ token, user }) {
+if (user) {
+token.id = user.id;
+token.username = user.username;
+token.role = user.role;
+token.unitNumber = user.unitNumber;
+}
+return token;
+},
+async session({ session, token }) {
+if (token) {
+session.user.id = token.id;
+session.user.username = token.username;
+session.user.role = token.role;
+session.user.unitNumber = token.unitNumber;
+}
+return session;
+}
+},
+pages: {
+signIn: '/auth/login',
+error: '/auth/error'
+},
+session: {
+strategy: 'jwt',
+maxAge: 30 * 24 * 60 * 60 // 30 days
+},
+secret: process.env.NEXTAUTH_SECRET
+});
+export { handler as GET, handler as POST };
+```
+STEP 4: Check Environment Variables
+Verify .env file has these:
+bash
+# NextAuth
+NEXTAUTH_SECRET=your-super-secret-key-min-32-characters
+NEXTAUTH_URL=https://heritage-connect-joanearistilde.replit.app
+
+# Database (use your actual connection string)
+DATABASE_URL=postgresql://...
+Generate a secure NEXTAUTH_SECRET:
+bash
+openssl rand -base64 32
+```
+
+Or use:
+```
+your-super-secret-key-at-least-32-characters-long-please
+STEP 5: Fix Database Connection
+Check /lib/db.ts:
+```typescript
+import { Pool } from 'pg';
+if (!process.env.DATABASE_URL) {
+throw new Error('DATABASE_URL is not set');
+}
+export const db = new Pool({
+connectionString: process.env.DATABASE_URL,
+ssl: process.env.NODE_ENV === 'production' ? {
+rejectUnauthorized: false
+} : false
+});
+// Test connection
+db.connect((err, client, release) => {
+if (err) {
+console.error('Database connection error:', err.stack);
+} else {
+console.log('✅ Database connected successfully');
+release();
+}
+});
+```
+STEP 6: Install Missing Dependencies
+Make sure these are in package.json:
+bash
+npm install next-auth bcryptjs
+npm install -D @types/bcryptjs
+STEP 7: Restart the Application
+After making changes:
+Stop the Replit app (click Stop button)
+Clear cache: rm -rf .next
+Reinstall: npm install
+Start again: Click Run
+STEP 8: Test Login
+Go to login page
+Username: board
+Password: board123
+Click Sign In
+Should redirect to /dashboard
+If still failing, check logs in Replit console for the EXACT error message.
+DEBUGGING CHECKLIST:
+If login still fails after above fixes:
+☐ Check database connection:
+bash
+   npx ts-node -e \"import { db } from './lib/db'; db.query('SELECT NOW()').then(r => console.log(r.rows))\"
+☐ Check if user exists:
+sql
+   SELECT username, role FROM users WHERE username = 'board';
+☐ Check password hash format:
+sql
+   SELECT username, LEFT(password_hash, 10) FROM users WHERE username = 'board';
+Should start with $2a$10$ or $2b$10$
+☐ Check NextAuth API route responds:
+bash
+   curl https://heritage-connect-joanearistilde.replit.app/api/auth/csrf
+Should return JSON with csrfToken
+☐ Check environment variables are loaded: Add to top of auth route:
+typescript
+   console.log('NEXTAUTH_SECRET:', process.env.NEXTAUTH_SECRET ? 'SET' : 'MISSING');
+   console.log('DATABASE_URL:', process.env.DATABASE_URL ? 'SET' : 'MISSING');
+MOST LIKELY ISSUE:
+Based on the 401 error, I suspect ONE of these:
+No users in database (most common)
+Wrong password hash (second most common)
+Missing NEXTAUTH_SECRET (third most common)
+Please do Steps 1-3 first, then report back what you find.
+QUICK TEMPORARY FIX (For Testing Only):
+If you just need to test and bypass auth temporarily, modify the login page:
+```typescript
+// /app/auth/login/page.tsx
+'use client';
+import { useRouter } from 'next/navigation';
+export default function LoginPage() {
+const router = useRouter();
+// TEMPORARY BYPASS FOR TESTING
+function handleQuickLogin() {
+// Skip authentication, go straight to dashboard
+router.push('/dashboard');
+}
+return ( <div> {/* ... existing form ... */}
+  <button
+    onClick={handleQuickLogin}
+    className=\"mt-4 text-sm text-red-600\"
+  >
+    🚨 TEMP: Skip Login (Testing Only)
+  </button>
+</div>
+);
+}
+```
+WARNING: Remove this before production! This bypasses all security.
+Please implement Steps 1-7 now and report back:
+Does the users table exist?
+What's the output of the password hash script?
+Do you see any error messages in Replit console after restart?
+Fix these issues NOW and the login will work. The app is solid - this is just a configuration/database setup issue."
+🎯 TLDR - DO THIS NOW:
+Copy the entire prompt above and paste it into Replit Agent.
+The agent will:
+✅ Check if users table exists
+✅ Create demo accounts with proper password hashes
+✅ Fix NextAuth configuration
+✅ Add missing environment variables
+✅ Restart the app
+✅ Test login
+Time to fix: 5-10 minutes
+Once you paste the prompt, Replit Agent will start fixing automatically. Come back in 10 minutes and login should work! 🚀
+Let me know what Replit Agent reports back! 💪
+
