@@ -11,7 +11,7 @@ import { useState, useEffect } from "react";
 import { isAuthenticated, getUser, logout } from "./lib/auth";
 import NotFound from "@/pages/not-found";
 import Login from "@/pages/login";
-import Dashboard from "@/pages/dashboard";
+import BoardDashboardVisual from "@/pages/board-dashboard-visual";
 import OwnerDashboard from "@/pages/owner-dashboard";
 import Units from "@/pages/units";
 import Payment from "@/pages/payment";
@@ -116,7 +116,7 @@ function AuthenticatedLayout() {
                 </>
               ) : (
                 <>
-                  <Route path="/" component={() => <ProtectedRoute component={Dashboard} />} />
+                  <Route path="/" component={() => <ProtectedRoute component={BoardDashboardVisual} />} />
                   <Route path="/units" component={() => <ProtectedRoute component={Units} />} />
                   <Route path="/payments" component={() => <ProtectedRoute component={PaymentsList} />} />
                   <Route path="/reports" component={() => <ProtectedRoute component={Reports} />} />
