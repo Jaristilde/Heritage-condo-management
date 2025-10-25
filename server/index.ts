@@ -24,6 +24,11 @@ app.use(express.json({
 app.use(express.urlencoded({ extended: false }));
 
 app.use((req, res, next) => {
+  // Log ALL incoming requests immediately
+  if (req.path.startsWith("/api")) {
+    log(`🔵 Incoming: ${req.method} ${req.path} from ${req.ip}`);
+  }
+
   const start = Date.now();
   const path = req.path;
   let capturedJsonResponse: Record<string, any> | undefined = undefined;
