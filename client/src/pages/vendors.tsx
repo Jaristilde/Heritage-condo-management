@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
@@ -13,8 +13,20 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Plus, Search, Pencil, Trash2, FileText } from "lucide-react";
 import { format } from "date-fns";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
 interface Vendor {
   id: string;
@@ -33,9 +45,33 @@ interface Vendor {
 
 export default function Vendors() {
   const [searchTerm, setSearchTerm] = useState("");
+  const [vendorToDelete, setVendorToDelete] = useState<Vendor | null>(null);
+  const { toast } = useToast();
 
   const { data: vendors, isLoading } = useQuery<Vendor[]>({
     queryKey: ["/api/vendors"],
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (vendorId: string) => {
+      return apiRequest("DELETE", `/api/vendors/${vendorId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/vendors"] });
+      toast({
+        title: "Success",
+        description: "Vendor deleted successfully",
+      });
+      setVendorToDelete(null);
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to delete vendor",
+        variant: "destructive",
+      });
+      setVendorToDelete(null);
+    },
   });
 
   if (isLoading) {
@@ -182,6 +218,7 @@ export default function Vendors() {
                             <Button
                               variant="ghost"
                               size="icon"
+                              onClick={() => setVendorToDelete(vendor)}
                               data-testid={`button-delete-${vendor.id}`}
                             >
                               <Trash2 className="h-4 w-4" />
@@ -197,6 +234,26 @@ export default function Vendors() {
           )}
         </CardContent>
       </Card>
+
+      <AlertDialog open={vendorToDelete !== null} onOpenChange={(open) => !open && setVendorToDelete(null)}>
+        <AlertDialogContent data-testid="dialog-delete-vendor">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Vendor</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete {vendorToDelete?.vendorName}? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-delete">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => vendorToDelete && deleteMutation.mutate(vendorToDelete.id)}
+              data-testid="button-confirm-delete"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
