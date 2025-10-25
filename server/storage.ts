@@ -9,6 +9,7 @@ import type {
   PaymentPlan, InsertPaymentPlan,
   Assessment, InsertAssessment,
   Vendor, InsertVendor,
+  VendorInvoice, InsertVendorInvoice,
   Document, InsertDocument,
   BoardAction, InsertBoardAction,
   Notification, InsertNotification
@@ -56,6 +57,16 @@ export interface IStorage {
   getVendor(id: string): Promise<Vendor | undefined>;
   createVendor(vendor: InsertVendor): Promise<Vendor>;
   updateVendor(id: string, vendor: Partial<InsertVendor>): Promise<Vendor | undefined>;
+  deleteVendor(id: string): Promise<void>;
+  
+  // Vendor Invoice operations
+  getAllVendorInvoices(): Promise<VendorInvoice[]>;
+  getVendorInvoice(id: string): Promise<VendorInvoice | undefined>;
+  getVendorInvoicesByVendor(vendorId: string): Promise<VendorInvoice[]>;
+  getVendorInvoicesByStatus(status: string): Promise<VendorInvoice[]>;
+  createVendorInvoice(invoice: InsertVendorInvoice): Promise<VendorInvoice>;
+  updateVendorInvoice(id: string, invoice: Partial<InsertVendorInvoice>): Promise<VendorInvoice | undefined>;
+  deleteVendorInvoice(id: string): Promise<void>;
   
   // Document operations
   getDocuments(relatedTo?: string, relatedId?: string): Promise<Document[]>;
@@ -240,6 +251,51 @@ export class DbStorage implements IStorage {
       .where(eq(schema.vendors.id, id))
       .returning();
     return result[0];
+  }
+
+  async deleteVendor(id: string): Promise<void> {
+    await db.delete(schema.vendors).where(eq(schema.vendors.id, id));
+  }
+
+  // Vendor Invoice operations
+  async getAllVendorInvoices(): Promise<VendorInvoice[]> {
+    return db.select().from(schema.vendorInvoices).orderBy(desc(schema.vendorInvoices.invoiceDate));
+  }
+
+  async getVendorInvoice(id: string): Promise<VendorInvoice | undefined> {
+    const result = await db.select().from(schema.vendorInvoices).where(eq(schema.vendorInvoices.id, id));
+    return result[0];
+  }
+
+  async getVendorInvoicesByVendor(vendorId: string): Promise<VendorInvoice[]> {
+    return db.select()
+      .from(schema.vendorInvoices)
+      .where(eq(schema.vendorInvoices.vendorId, vendorId))
+      .orderBy(desc(schema.vendorInvoices.invoiceDate));
+  }
+
+  async getVendorInvoicesByStatus(status: string): Promise<VendorInvoice[]> {
+    return db.select()
+      .from(schema.vendorInvoices)
+      .where(eq(schema.vendorInvoices.status, status))
+      .orderBy(desc(schema.vendorInvoices.invoiceDate));
+  }
+
+  async createVendorInvoice(invoice: InsertVendorInvoice): Promise<VendorInvoice> {
+    const result = await db.insert(schema.vendorInvoices).values(invoice).returning();
+    return result[0];
+  }
+
+  async updateVendorInvoice(id: string, invoice: Partial<InsertVendorInvoice>): Promise<VendorInvoice | undefined> {
+    const result = await db.update(schema.vendorInvoices)
+      .set(invoice)
+      .where(eq(schema.vendorInvoices.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteVendorInvoice(id: string): Promise<void> {
+    await db.delete(schema.vendorInvoices).where(eq(schema.vendorInvoices.id, id));
   }
 
   // Document operations

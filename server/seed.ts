@@ -241,6 +241,89 @@ async function seed() {
     status: "active",
   });
 
+  // Create vendors
+  console.log("Creating vendors...");
+  
+  await storage.createVendor({
+    vendorName: "Acadia Elevator",
+    serviceType: "Elevator Maintenance",
+    vendorType: "maintenance",
+    contactName: null,
+    contactEmail: "service@acadiaelevator.com",
+    contactPhone: "305-555-0201",
+    address: null,
+    monthlyCost: "164.00",
+    contractExpiration: new Date("2026-05-01"),
+    paymentTerms: "Net 30",
+    lastPaidDate: new Date("2025-10-01"),
+    status: "active",
+    notes: "Elevator maintenance and inspections",
+  });
+
+  await storage.createVendor({
+    vendorName: "Foundation Risk Partners",
+    serviceType: "Property Insurance",
+    vendorType: "insurance",
+    contactName: null,
+    contactEmail: "policies@foundationrisk.com",
+    contactPhone: "305-555-0202",
+    address: null,
+    monthlyCost: "2428.00",
+    contractExpiration: new Date("2026-05-11"),
+    paymentTerms: "Annual",
+    lastPaidDate: new Date("2025-05-11"),
+    status: "active",
+    notes: "Property and liability insurance coverage",
+  });
+
+  await storage.createVendor({
+    vendorName: "FPL (Florida Power & Light)",
+    serviceType: "Electricity",
+    vendorType: "utility",
+    contactName: null,
+    contactEmail: "business@fpl.com",
+    contactPhone: "1-800-555-4357",
+    address: null,
+    monthlyCost: "181.00",
+    contractExpiration: null,
+    paymentTerms: "Net 15",
+    lastPaidDate: new Date("2025-10-01"),
+    status: "active",
+    notes: "Common area electricity service",
+  });
+
+  await storage.createVendor({
+    vendorName: "Waste Pro",
+    serviceType: "Trash Removal",
+    vendorType: "contractor",
+    contactName: null,
+    contactEmail: "service@wastepro.com",
+    contactPhone: "305-555-0204",
+    address: null,
+    monthlyCost: "667.00",
+    contractExpiration: new Date("2026-01-01"),
+    paymentTerms: "Net 30",
+    lastPaidDate: new Date("2025-10-01"),
+    status: "active",
+    notes: "Trash and recycling collection services",
+  });
+
+  await storage.createVendor({
+    vendorName: "Comcast",
+    serviceType: "Cable/Internet",
+    vendorType: "utility",
+    contactName: null,
+    contactEmail: "business@comcast.com",
+    contactPhone: "1-800-555-2662",
+    address: null,
+    monthlyCost: "173.00",
+    contractExpiration: null,
+    paymentTerms: "Net 30",
+    lastPaidDate: new Date("2025-10-01"),
+    status: "active",
+    notes: "Building cable and internet services",
+  });
+
   console.log("✅ Database seeded successfully!");
   console.log("\nDefault login credentials:");
   console.log("Board: username: board, password: board123");

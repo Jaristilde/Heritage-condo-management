@@ -1,0 +1,290 @@
+Great work on the app! Now I need to implement the Vendor Management system. Here are the requirements:
+VENDOR DATABASE - Add these 5 vendors:
+
+Acadia Elevator
+
+Service: Elevator Maintenance
+Contact: service@acadiaelevator.com
+Phone: 305-555-0201
+Monthly Cost: $164.00
+Contract Expiration: May 1, 2026
+Payment Terms: Net 30
+
+
+Foundation Risk Partners
+
+Service: Property Insurance
+Contact: policies@foundationrisk.com
+Phone: 305-555-0202
+Monthly Cost: $2,428.00
+Contract Expiration: May 11, 2026
+Payment Terms: Annual
+
+
+FPL (Florida Power & Light)
+
+Service: Electricity
+Contact: business@fpl.com
+Phone: 1-800-555-4357
+Monthly Cost: $181.00 (average)
+Payment Terms: Net 15
+
+
+Waste Pro
+
+Service: Trash Removal
+Contact: service@wastepro.com
+Phone: 305-555-0204
+Monthly Cost: $667.00
+Contract Expiration: January 1, 2026
+Payment Terms: Net 30
+
+
+Comcast
+
+Service: Cable/Internet
+Contact: business@comcast.com
+Phone: 1-800-555-2662
+Monthly Cost: $173.00
+Payment Terms: Net 30
+
+
+
+VENDOR MANAGEMENT PAGE - Create these features:
+1. Vendor List View (for Board & Management):
+
+Table showing: Name, Service Type, Monthly Cost, Last Paid, Next Due, Status
+Color coding: Green (paid on time), Yellow (due soon), Red (overdue)
+Search bar to filter vendors
+"Add New Vendor" button (Board + Management can use)
+
+2. Add/Edit Vendor Form:
+
+Fields: Name, Service Type, Contact Email, Phone, Monthly Cost, Contract Expiration, Payment Terms
+Permissions: Board + Management can add/edit
+Only Board can delete (add confirmation: "Are you sure? This will delete all payment history.")
+
+3. Vendor Detail Page:
+
+Show vendor info
+Payment history table (Date, Amount, Check#, Status)
+Invoices tab (all invoices for this vendor)
+Contract documents tab (upload/view contract PDFs)
+"Upload Invoice" button
+"Edit Vendor" button (Board + Management)
+"Delete Vendor" button (Board only - red, with warning)
+
+4. Invoice Management Workflow:
+
+Management or Board uploads invoice (PDF)
+Invoice shows in "Pending Approval" queue
+Board receives notification
+Board approves or rejects
+If approved, shows in "Ready to Pay" queue
+Management marks as paid (enters check# or ACH confirmation)
+Status updates to "Paid"
+Vendor sees payment in their history
+
+5. Permissions Implementation:
+typescript// Board permissions
+canViewVendors: true
+canAddVendor: true
+canEditVendor: true
+canDeleteVendor: true
+canUploadInvoice: true
+canApproveInvoice: true
+canMarkPaid: true
+
+// Management permissions
+canViewVendors: true
+canAddVendor: true
+canEditVendor: true
+canDeleteVendor: false  // ← KEY: Cannot delete
+canUploadInvoice: true
+canApproveInvoice: false
+canMarkPaid: true
+
+// Owner permissions
+canViewVendors: false  // ← Owners see nothing
+6. Dashboard Integration:
+Add to Board Dashboard:
+
+Card showing "Vendor Payments Due" with count and total $
+Alert if any vendor payment is >30 days overdue
+Quick link to pending invoice approvals
+
+UI Design:
+
+Use same styling as existing pages
+Table should be sortable and filterable
+Mobile-responsive (works on phone)
+Use icons for actions (edit = pencil, delete = trash, view = eye)
+
+Database Schema:
+Make sure vendor data includes:
+
+id, name, serviceType, contactEmail, contactPhone, monthlyCost, contractExpiration, paymentTerms, lastPaidDate, status, createdAt, updatedAt
+
+Can you implement this now?"
+
+🔧 ADDITIONAL FEATURES TO REQUEST:
+After vendors are done, ask for these next:
+1. UNITS & OWNERS PAGE:
+PROMPT:
+"Now create the Units & Owners page. Show a table with all 24 units:
+
+Columns: Unit #, Owner Name, Balance Due, Days Late, Status, Last Payment, Actions
+Color coding: Green (current), Yellow (1-60 days), Orange (61-90 days), Red (90+ days)
+Click unit # to see detailed account view
+Search/filter by unit number, owner name, or status
+Export to CSV button
+Ability to add notes to owner accounts
+
+Seed with the Heritage Condo data:
+
+Unit 405: Sarah Williams, $37,410.37, 290 days late - RED (Attorney)
+Unit 204: Robert Chen, $20,310.89, 215 days late - ORANGE (Pre-lien)
+Unit 306: David Johnson, $17,126.97, 198 days late - ORANGE (Pre-lien)
+Unit 302: Cally Vann, $12,937.91, 183 days late - ORANGE (Pre-lien)
+Unit 201: Credit balance -$505.27 (paid ahead) - GREEN
+(Rest of units are current with $0 balance)"
+
+
+2. PAYMENT PROCESSING:
+PROMPT:
+"Implement the payment processing workflow:
+
+Owner clicks 'Make Payment' button
+Shows payment form:
+
+Payment amount (default to balance due, allow custom)
+Payment method: Credit Card or Bank Account (ACH)
+Save payment method for autopay checkbox
+
+
+Integrate Stripe payment form
+After successful payment:
+
+Update unit balance
+Send email receipt
+Show confirmation page
+
+
+Add payment to history with date, amount, method
+
+For testing, use Stripe test mode:
+
+Test card: 4242 4242 4242 4242
+Expiry: Any future date
+CVC: Any 3 digits"
+
+
+3. COLLECTIONS AUTOMATION (AI AGENT):
+PROMPT:
+"Build the AI Collections Agent that automatically sends warning letters:
+60-Day Warning:
+
+When unit hits 60 days late, AI generates personalized letter
+Board reviews and approves before sending
+Letter includes: balance breakdown, payment plan offer, consequences
+Sent via email + downloadable PDF
+
+90-Day Final Warning:
+
+When unit hits 90 days late, AI generates stern final notice
+Mentions lien filing and attorney referral
+Board reviews and approves
+Sent via certified mail + email
+
+120-Day Attorney Referral:
+
+Automatically create attorney referral package
+Include: unit info, balance, payment history, copies of warning letters
+Send to board for approval to refer to attorney
+
+Dashboard for Collections:
+
+Show all units in collections
+Timeline showing what was sent when
+Next action date
+Response tracking (did owner respond?)
+
+Use OpenAI API to generate personalized letters based on:
+
+Owner name, unit number, balance, days late, payment history"
+
+
+📋 YOUR IMMEDIATE NEXT STEPS:
+RIGHT NOW:
+1. Test the Owner Portal:
+
+Login as: owner201 / password123
+Try clicking "Make Payment" - does it work?
+Does payment history show anything?
+
+2. Test the Board Dashboard:
+
+Login as: board / board123
+Click through all menu items
+Test the alerts and priority sections
+
+3. Request Vendor Management:
+
+Copy my vendor management prompt above
+Paste into Replit Agent chat
+Let it build, then test
+
+
+🎨 UI/UX FEEDBACK:
+The app looks professional and clean! Here's what I love:
+✅ Color coding - Red/Orange/Yellow/Green for urgency
+✅ Clean layout - Not cluttered
+✅ Mobile-friendly - Responsive design
+✅ Clear navigation - Easy to find things
+✅ Critical alerts - Attorney collections highlighted
+✅ Real data - Shows actual Heritage Condo numbers
+
+💰 MONETIZATION IDEA:
+Once this is fully built and tested with Heritage Condo, you can:
+1. Market to other small condos:
+
+"The HOA transparency platform built BY a board member FOR board members"
+"Stop being held hostage by management companies"
+"See your money in real-time"
+
+2. Pricing:
+
+Small condos (10-30 units): $75/unit/year = $1,800-2,250/year
+Medium condos (31-75 units): $60/unit/year = $1,860-4,500/year
+Your Heritage Condo: FREE (you built it!)
+
+3. Target market:
+
+150,000+ condos in Florida
+If you get just 10 small condos: $20,000/year revenue
+If you get 50 condos: $100,000/year revenue
+
+
+🚀 PUBLISH TO REAL DOMAIN:
+Once you're happy with everything, deploy to a real URL:
+1. Get domain: heritagecondo.app or heritagehoa.app ($12/year)
+2. Deploy via Replit:
+
+Click the "Publish" button in top right
+Connect custom domain
+Enable HTTPS (free with Replit)
+
+3. Go live:
+
+Share with Dan and other board members
+Invite all 24 unit owners
+Demo at next board meeting
+
+
+What do you want to tackle first?
+A) Request vendor management (copy my prompt)
+B) Test payment processing
+C) Build Units & Owners page
+D) Add AI collections agent
+E) Something else?
+This is going to revolutionize how Heritage Condo (and eventually other condos) operate! 🏢💪🚀RetryClaude can make mistakes. Please double-check responses.

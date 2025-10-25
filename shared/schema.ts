@@ -91,14 +91,41 @@ export const assessments = pgTable("assessments", {
 export const vendors = pgTable("vendors", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   vendorName: text("vendor_name").notNull(),
+  serviceType: text("service_type").notNull(), // 'Elevator Maintenance', 'Property Insurance', 'Electricity', etc.
   vendorType: text("vendor_type").notNull(), // 'maintenance', 'legal', 'insurance', 'utility', 'contractor'
   contactName: text("contact_name"),
-  email: text("email"),
-  phone: text("phone"),
+  contactEmail: text("contact_email"),
+  contactPhone: text("contact_phone"),
   address: text("address"),
+  monthlyCost: decimal("monthly_cost", { precision: 10, scale: 2 }),
+  contractExpiration: timestamp("contract_expiration"),
+  paymentTerms: text("payment_terms"), // 'Net 30', 'Net 15', 'Annual', etc.
+  lastPaidDate: timestamp("last_paid_date"),
   status: text("status").notNull().default("active"), // 'active', 'inactive'
   notes: text("notes"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Vendor Invoices table (for invoice management workflow)
+export const vendorInvoices = pgTable("vendor_invoices", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  vendorId: varchar("vendor_id").notNull(),
+  invoiceNumber: text("invoice_number"),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  invoiceDate: timestamp("invoice_date").notNull(),
+  dueDate: timestamp("due_date"),
+  description: text("description"),
+  documentUrl: text("document_url"), // URL to uploaded invoice PDF
+  status: text("status").notNull().default("pending"), // 'pending', 'approved', 'rejected', 'paid'
+  uploadedBy: varchar("uploaded_by").notNull(), // user ID
+  approvedBy: varchar("approved_by"), // user ID
+  paidDate: timestamp("paid_date"),
+  paymentMethod: text("payment_method"), // 'check', 'ach', 'wire'
+  checkNumber: text("check_number"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
 // Documents table (for file storage references)
@@ -170,6 +197,13 @@ export const insertAssessmentSchema = createInsertSchema(assessments).omit({
 export const insertVendorSchema = createInsertSchema(vendors).omit({
   id: true,
   createdAt: true,
+  updatedAt: true,
+});
+
+export const insertVendorInvoiceSchema = createInsertSchema(vendorInvoices).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
 });
 
 export const insertDocumentSchema = createInsertSchema(documents).omit({
@@ -207,6 +241,9 @@ export type Assessment = typeof assessments.$inferSelect;
 
 export type InsertVendor = z.infer<typeof insertVendorSchema>;
 export type Vendor = typeof vendors.$inferSelect;
+
+export type InsertVendorInvoice = z.infer<typeof insertVendorInvoiceSchema>;
+export type VendorInvoice = typeof vendorInvoices.$inferSelect;
 
 export type InsertDocument = z.infer<typeof insertDocumentSchema>;
 export type Document = typeof documents.$inferSelect;

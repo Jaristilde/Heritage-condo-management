@@ -18,6 +18,7 @@ import Payment from "@/pages/payment";
 import PaymentsList from "@/pages/payments-list";
 import Assessments from "@/pages/assessments";
 import Vendors from "@/pages/vendors";
+import VendorForm from "@/pages/vendor-form";
 import Documents from "@/pages/documents";
 import Reports from "@/pages/reports";
 
@@ -120,6 +121,8 @@ function AuthenticatedLayout() {
                   <Route path="/payments" component={() => <ProtectedRoute component={PaymentsList} />} />
                   <Route path="/reports" component={() => <ProtectedRoute component={Reports} />} />
                   <Route path="/assessments" component={() => <ProtectedRoute component={Assessments} />} />
+                  <Route path="/vendors/new" component={() => <ProtectedRoute component={VendorForm} />} />
+                  <Route path="/vendors/:id/edit" component={() => <ProtectedRoute component={VendorForm} />} />
                   <Route path="/vendors" component={() => <ProtectedRoute component={Vendors} />} />
                   <Route path="/documents" component={() => <ProtectedRoute component={Documents} />} />
                 </>
