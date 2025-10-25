@@ -41,9 +41,10 @@ export default function Login() {
       });
       setLocation("/");
     } catch (error) {
+      console.error("Login error:", error);
       toast({
         title: "Login failed",
-        description: "Invalid username or password",
+        description: error instanceof Error ? error.message : "Invalid username or password",
         variant: "destructive",
       });
     } finally {
