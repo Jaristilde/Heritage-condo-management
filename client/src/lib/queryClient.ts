@@ -45,7 +45,8 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    const res = await fetch(queryKey.join("/") as string, {
+    const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+    const res = await fetch(`${API_URL}/${queryKey.join("/")}`, {
       headers: getAuthHeaders(),
     });
 
