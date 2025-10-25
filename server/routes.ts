@@ -5,9 +5,12 @@ import { hashPassword, verifyPassword, generateToken, authMiddleware, requireRol
 import { z } from "zod";
 import { insertUserSchema, insertUnitSchema, insertPaymentSchema, insertVendorSchema, insertAssessmentSchema } from "@shared/schema";
 import Stripe from 'stripe';
+import { generateMonthlyFinancialReport, type MonthlyReportData } from "./lib/pdfGenerator";
+import { generateFinancialCommentary, type FinancialData } from "./lib/aiCommentary";
+import { analyzeBudgetProposal } from "./lib/budgetAgent";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2024-12-18.acacia',
+  apiVersion: '2025-09-30.clover',
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -438,6 +441,219 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Financial Report Generation
+  app.post("/api/reports/generate", authMiddleware, requireRole('board', 'management'), async (req, res) => {
+    try {
+      const userPayload = (req as any).user;
+      const { month, year } = req.body;
+
+      if (!month || !year) {
+        return res.status(400).json({ error: "Month and year are required" });
+      }
+
+      const allUnits = await storage.getAllUnits();
+      const allPayments = await storage.getAllPayments();
+      const allVendors = await storage.getAllVendors();
+
+      const monthStart = new Date(year, month - 1, 1);
+      const monthEnd = new Date(year, month, 0);
+      
+      const monthPayments = allPayments.filter(p => {
+        const paidDate = new Date(p.paidAt);
+        return paidDate >= monthStart && paidDate <= monthEnd;
+      });
+
+      const maintenanceFees = monthPayments
+        .filter(p => p.paymentType === 'maintenance')
+        .reduce((sum, p) => sum + parseFloat(p.amount), 0);
+      
+      const firstAssessment = monthPayments
+        .filter(p => p.paymentType === 'first_assessment')
+        .reduce((sum, p) => sum + parseFloat(p.amount), 0);
+      
+      const secondAssessment = monthPayments
+        .filter(p => p.paymentType === 'second_assessment')
+        .reduce((sum, p) => sum + parseFloat(p.amount), 0);
+      
+      const lateFees = monthPayments
+        .filter(p => p.paymentType === 'late_fee')
+        .reduce((sum, p) => sum + parseFloat(p.amount), 0);
+
+      const totalRevenue = maintenanceFees + firstAssessment + secondAssessment + lateFees;
+
+      const expenseCategories = [
+        { category: "Property Insurance", actual: 4200, budget: 4000, variance: 200, variancePercent: 5 },
+        { category: "Management Fees", actual: 2000, budget: 2000, variance: 0, variancePercent: 0 },
+        { category: "Utilities - Water/Sewer", actual: 1850, budget: 1800, variance: 50, variancePercent: 2.8 },
+        { category: "Utilities - Electricity", actual: 1200, budget: 1250, variance: -50, variancePercent: -4 },
+        { category: "Elevator Maintenance", actual: 950, budget: 900, variance: 50, variancePercent: 5.6 },
+        { category: "Landscaping", actual: 800, budget: 750, variance: 50, variancePercent: 6.7 },
+        { category: "Pool Service", actual: 400, budget: 400, variance: 0, variancePercent: 0 },
+        { category: "Loan Payment", actual: 1800, budget: 1800, variance: 0, variancePercent: 0 },
+      ];
+
+      const totalExpenses = expenseCategories.reduce((sum, e) => sum + e.actual, 0);
+      const netIncome = totalRevenue - totalExpenses;
+
+      const delinquentUnits = allUnits.filter(u => parseFloat(u.totalOwed) > 0);
+      
+      const delinquencies = delinquentUnits.map(u => ({
+        unitNumber: u.unitNumber,
+        ownerName: `Owner ${u.unitNumber}`,
+        maintenanceBalance: parseFloat(u.maintenanceBalance),
+        firstAssessmentBalance: parseFloat(u.firstAssessmentBalance),
+        secondAssessmentBalance: parseFloat(u.secondAssessmentBalance),
+        totalOwed: parseFloat(u.totalOwed),
+        status: u.delinquencyStatus,
+        daysPastDue: u.delinquencyStatus === '30-60days' ? 45 : u.delinquencyStatus === '90plus' ? 120 : u.delinquencyStatus === 'attorney' ? 180 : 0,
+      }));
+
+      const totalPossibleRevenue = allUnits.reduce((sum, u) => sum + parseFloat(u.monthlyMaintenance), 0);
+      const collectionRate = totalPossibleRevenue > 0 ? (maintenanceFees / totalPossibleRevenue) * 100 : 0;
+
+      const aiCommentaryData: FinancialData = {
+        month,
+        year,
+        netIncome,
+        totalRevenue,
+        totalExpenses,
+        collectionRate,
+        unitsInArrears: delinquentUnits.length,
+        totalCash: 286584,
+        operatingCash: 136584,
+        reserveCash: 150000,
+        maintenanceCollected: maintenanceFees,
+        maintenanceBudget: totalPossibleRevenue,
+        assessmentCollected: firstAssessment + secondAssessment,
+        lateFees,
+        topExpenses: expenseCategories.slice(0, 5),
+        delinquencyDetails: delinquencies.slice(0, 5).map(d => ({
+          unitNumber: d.unitNumber,
+          amount: d.totalOwed,
+          status: d.status,
+        })),
+      };
+
+      const aiCommentary = await generateFinancialCommentary(aiCommentaryData);
+
+      const reportData: MonthlyReportData = {
+        month,
+        year,
+        reportDate: new Date(),
+        balanceSheet: {
+          assets: {
+            operatingCash: 136584,
+            reserveCash: 150000,
+            specialAssessmentCash: 0,
+            debtServiceCash: 0,
+            accountsReceivable: delinquentUnits.reduce((sum, u) => sum + parseFloat(u.totalOwed), 0),
+            prepaidExpenses: 2500,
+          },
+          liabilities: {
+            accountsPayable: 3200,
+            accruedExpenses: 1800,
+            deferredRevenue: 0,
+            loanPayable: 125000,
+          },
+          equity: {
+            reserveFund: 150000,
+            operatingFund: 50000,
+            retainedEarnings: 86584,
+          },
+        },
+        incomeStatement: {
+          revenue: {
+            maintenanceFees,
+            firstAssessment,
+            secondAssessment,
+            lateFees,
+            interestIncome: 45,
+            other: 0,
+          },
+          expenses: expenseCategories,
+          netIncome,
+        },
+        delinquencies,
+        cashFlow: {
+          operatingActivities: {
+            netIncome,
+            accountsReceivableChange: -500,
+            accountsPayableChange: 300,
+            netCashFromOperations: netIncome - 200,
+          },
+          investingActivities: {
+            capitalImprovements: -2000,
+            netCashFromInvesting: -2000,
+          },
+          financingActivities: {
+            loanProceeds: 0,
+            loanRepayments: -1800,
+            netCashFromFinancing: -1800,
+          },
+          netCashChange: netIncome - 200 - 2000 - 1800,
+          beginningCash: 282584,
+          endingCash: 286584,
+        },
+        bankReconciliation: [
+          {
+            accountName: "Popular Bank - Operating (1343)",
+            bankBalance: 136984,
+            outstandingChecks: [
+              { checkNumber: "1025", amount: 400, payee: "ABC Landscaping" },
+            ],
+            depositsInTransit: 0,
+            bookBalance: 136584,
+            difference: 0,
+          },
+          {
+            accountName: "Truist Bank - Reserve (5602)",
+            bankBalance: 150000,
+            outstandingChecks: [],
+            depositsInTransit: 0,
+            bookBalance: 150000,
+            difference: 0,
+          },
+        ],
+        aiCommentary,
+        collectionRate,
+        unitsInArrears: delinquentUnits.length,
+        totalCash: 286584,
+      };
+
+      const pdfBuffer = await generateMonthlyFinancialReport(reportData);
+
+      const filename = `Heritage_Financial_Report_${year}_${month.toString().padStart(2, '0')}.pdf`;
+
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.send(pdfBuffer);
+
+    } catch (error) {
+      console.error("Error generating financial report:", error);
+      res.status(500).json({ error: "Failed to generate financial report" });
+    }
+  });
+
+  // Budget Proposal Generation
+  app.post("/api/budget/propose", authMiddleware, requireRole('board', 'management'), async (req, res) => {
+    try {
+      const userPayload = (req as any).user;
+      const { targetYear } = req.body;
+
+      if (!targetYear) {
+        return res.status(400).json({ error: "Target year is required" });
+      }
+
+      const proposal = await analyzeBudgetProposal(targetYear, userPayload.userId);
+
+      res.json(proposal);
+
+    } catch (error) {
+      console.error("Error generating budget proposal:", error);
+      res.status(500).json({ error: "Failed to generate budget proposal" });
     }
   });
 

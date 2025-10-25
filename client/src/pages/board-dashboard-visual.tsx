@@ -1,8 +1,16 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { KPICard } from "@/components/KPICard";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
+import { Loader2, Sparkles } from "lucide-react";
 import {
   DollarSign,
   TrendingUp,
@@ -31,13 +39,71 @@ import {
   Legend,
   ResponsiveContainer,
   Cell,
-  Label,
+  Label as RechartsLabel,
   ReferenceLine,
 } from "recharts";
 
 export default function BoardDashboardVisual() {
   const { data: stats } = useQuery<any>({
     queryKey: ["/api/dashboard/stats"],
+  });
+  const { toast } = useToast();
+
+  const [reportDialogOpen, setReportDialogOpen] = useState(false);
+  const [budgetDialogOpen, setBudgetDialogOpen] = useState(false);
+  const [selectedMonth, setSelectedMonth] = useState("6");
+  const [selectedYear, setSelectedYear] = useState("2025");
+  const [targetYear, setTargetYear] = useState("2026");
+  const [budgetProposal, setBudgetProposal] = useState<any>(null);
+
+  const generateReportMutation = useMutation({
+    mutationFn: async ({ month, year }: { month: number; year: number }) => {
+      const response = await apiRequest("POST", "/api/reports/generate", { month, year });
+      return response.blob();
+    },
+    onSuccess: (blob) => {
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `Heritage_Financial_Report_${selectedYear}_${selectedMonth.padStart(2, "0")}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      setReportDialogOpen(false);
+      toast({
+        title: "Report Generated",
+        description: "Your financial report has been downloaded successfully.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to generate report. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const generateBudgetMutation = useMutation({
+    mutationFn: async ({ targetYear }: { targetYear: number }) => {
+      const response = await apiRequest("POST", "/api/budget/propose", { targetYear });
+      return response.json();
+    },
+    onSuccess: (data) => {
+      setBudgetProposal(data);
+      toast({
+        title: "Budget Proposal Generated",
+        description: "AI has analyzed your data and generated budget scenarios.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to generate budget proposal. Please try again.",
+        variant: "destructive",
+      });
+    },
   });
 
   // June 2025 Real Data from Heritage Financial Report
@@ -244,7 +310,7 @@ export default function BoardDashboardVisual() {
                   outerRadius={120}
                   dataKey="value"
                 >
-                  <Label
+                  <RechartsLabel
                     value={`${collectionPercentage}%`}
                     position="center"
                     style={{ fontSize: "32px", fontWeight: "bold" }}
@@ -440,7 +506,7 @@ export default function BoardDashboardVisual() {
       {/* SECTION 6: QUICK ACTIONS */}
       <div className="space-y-4">
         <h2 className="text-2xl font-bold">Quick Actions</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           <Button
             variant="outline"
             size="lg"
@@ -472,13 +538,260 @@ export default function BoardDashboardVisual() {
             variant="outline"
             size="lg"
             className="flex flex-col items-center gap-2 whitespace-normal"
+            onClick={() => setReportDialogOpen(true)}
             data-testid="button-generate-report"
           >
             <FileText className="h-5 w-5" />
             <span className="text-sm text-center">Generate Monthly Report</span>
           </Button>
+          <Button
+            variant="outline"
+            size="lg"
+            className="flex flex-col items-center gap-2 whitespace-normal"
+            onClick={() => setBudgetDialogOpen(true)}
+            data-testid="button-propose-budget"
+          >
+            <Sparkles className="h-5 w-5" />
+            <span className="text-sm text-center">AI Budget Proposal</span>
+          </Button>
         </div>
       </div>
+
+      {/* GENERATE REPORT DIALOG */}
+      <Dialog open={reportDialogOpen} onOpenChange={setReportDialogOpen}>
+        <DialogContent data-testid="dialog-generate-report">
+          <DialogHeader>
+            <DialogTitle>Generate Monthly Financial Report</DialogTitle>
+            <DialogDescription>
+              Create a comprehensive 7-page PDF report with AI-powered financial commentary.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="month">Month</Label>
+              <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                <SelectTrigger id="month" data-testid="select-month">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1">January</SelectItem>
+                  <SelectItem value="2">February</SelectItem>
+                  <SelectItem value="3">March</SelectItem>
+                  <SelectItem value="4">April</SelectItem>
+                  <SelectItem value="5">May</SelectItem>
+                  <SelectItem value="6">June</SelectItem>
+                  <SelectItem value="7">July</SelectItem>
+                  <SelectItem value="8">August</SelectItem>
+                  <SelectItem value="9">September</SelectItem>
+                  <SelectItem value="10">October</SelectItem>
+                  <SelectItem value="11">November</SelectItem>
+                  <SelectItem value="12">December</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="grid gap-2">
+              <Label htmlFor="year">Year</Label>
+              <Input
+                id="year"
+                type="number"
+                value={selectedYear}
+                onChange={(e) => setSelectedYear(e.target.value)}
+                data-testid="input-year"
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setReportDialogOpen(false)}
+              data-testid="button-cancel-report"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => generateReportMutation.mutate({ 
+                month: parseInt(selectedMonth), 
+                year: parseInt(selectedYear) 
+              })}
+              disabled={generateReportMutation.isPending}
+              data-testid="button-confirm-generate"
+            >
+              {generateReportMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Generate PDF Report
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* BUDGET PROPOSAL DIALOG */}
+      <Dialog open={budgetDialogOpen} onOpenChange={setBudgetDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto" data-testid="dialog-budget-proposal">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-purple-600" />
+              AI Budget Proposal
+            </DialogTitle>
+            <DialogDescription>
+              Claude AI analyzes your historical data and proposes next year's budget with 3 scenarios.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {!budgetProposal ? (
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="targetYear">Budget Year</Label>
+                <Input
+                  id="targetYear"
+                  type="number"
+                  value={targetYear}
+                  onChange={(e) => setTargetYear(e.target.value)}
+                  placeholder="2026"
+                  data-testid="input-target-year"
+                />
+              </div>
+
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setBudgetDialogOpen(false)}
+                  data-testid="button-cancel-budget"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={() => generateBudgetMutation.mutate({ targetYear: parseInt(targetYear) })}
+                  disabled={generateBudgetMutation.isPending}
+                  className="flex-1"
+                  data-testid="button-generate-budget"
+                >
+                  {generateBudgetMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Generate AI Budget Proposal
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-6" data-testid="budget-proposal-results">
+              <div className="p-4 bg-muted rounded-lg">
+                <h3 className="font-semibold mb-2">Executive Summary</h3>
+                <p className="text-sm">{budgetProposal.executiveSummary}</p>
+              </div>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Recommended Assessment: ${budgetProposal.recommendedAssessment}/month</CardTitle>
+                  <CardDescription>Change: {budgetProposal.assessmentChange}</CardDescription>
+                </CardHeader>
+              </Card>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {budgetProposal.scenarios?.conservative && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-base">Conservative</CardTitle>
+                      <CardDescription>
+                        ${budgetProposal.scenarios.conservative.monthlyAssessment}/month
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-1 text-sm">
+                        <p>Revenue: ${budgetProposal.scenarios.conservative.annualRevenue?.toLocaleString()}</p>
+                        <p>Expenses: ${budgetProposal.scenarios.conservative.annualExpenses?.toLocaleString()}</p>
+                        <p>Net: ${budgetProposal.scenarios.conservative.netIncome?.toLocaleString()}</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+                {budgetProposal.scenarios?.moderate && (
+                  <Card className="border-purple-600">
+                    <CardHeader>
+                      <CardTitle className="text-base">Moderate (Recommended)</CardTitle>
+                      <CardDescription>
+                        ${budgetProposal.scenarios.moderate.monthlyAssessment}/month
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-1 text-sm">
+                        <p>Revenue: ${budgetProposal.scenarios.moderate.annualRevenue?.toLocaleString()}</p>
+                        <p>Expenses: ${budgetProposal.scenarios.moderate.annualExpenses?.toLocaleString()}</p>
+                        <p>Net: ${budgetProposal.scenarios.moderate.netIncome?.toLocaleString()}</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+                {budgetProposal.scenarios?.optimistic && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-base">Optimistic</CardTitle>
+                      <CardDescription>
+                        ${budgetProposal.scenarios.optimistic.monthlyAssessment}/month
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-1 text-sm">
+                        <p>Revenue: ${budgetProposal.scenarios.optimistic.annualRevenue?.toLocaleString()}</p>
+                        <p>Expenses: ${budgetProposal.scenarios.optimistic.annualExpenses?.toLocaleString()}</p>
+                        <p>Net: ${budgetProposal.scenarios.optimistic.netIncome?.toLocaleString()}</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+
+              {budgetProposal.risks && budgetProposal.risks.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Identified Risks</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ul className="list-disc pl-4 space-y-1 text-sm">
+                      {budgetProposal.risks.map((risk: string, i: number) => (
+                        <li key={i}>{risk}</li>
+                      ))}
+                    </ul>
+                  </CardContent>
+                </Card>
+              )}
+
+              {budgetProposal.recommendations && budgetProposal.recommendations.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Recommendations</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ul className="list-disc pl-4 space-y-1 text-sm">
+                      {budgetProposal.recommendations.map((rec: string, i: number) => (
+                        <li key={i}>{rec}</li>
+                      ))}
+                    </ul>
+                  </CardContent>
+                </Card>
+              )}
+
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setBudgetProposal(null);
+                    setBudgetDialogOpen(false);
+                  }}
+                  data-testid="button-close-budget"
+                >
+                  Close
+                </Button>
+                <Button
+                  onClick={() => setBudgetProposal(null)}
+                  data-testid="button-new-proposal"
+                >
+                  Generate New Proposal
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
