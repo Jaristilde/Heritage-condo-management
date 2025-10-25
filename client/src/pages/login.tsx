@@ -116,7 +116,7 @@ export default function Login() {
             <p>Demo accounts:</p>
             <p>Board: <span className="font-mono">board / board123</span></p>
             <p>Management: <span className="font-mono">management / management123</span></p>
-            <p>Owner: <span className="font-mono">owner201 / password123</span></p>
+            <p>Owner: <span className="font-mono">owner201 / owner123</span></p>
           </div>
         </CardContent>
       </Card>
