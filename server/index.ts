@@ -8,7 +8,10 @@ const app = express();
 // Enable CORS for all routes
 app.use(
   cors({
-    origin: true,
+    origin: [
+      "http://localhost:5000",
+      "https://YOUR-NETLIFY-URL.netlify.app", // Replace with your actual Netlify URL
+    ],
     credentials: true,
   }),
 );
