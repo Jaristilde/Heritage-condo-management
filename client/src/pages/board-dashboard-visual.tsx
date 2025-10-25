@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { KPICard } from "@/components/KPICard";
@@ -137,7 +137,92 @@ export default function BoardDashboardVisual() {
         </div>
       </div>
 
-      {/* SECTION 2: REVENUE COLLECTION VISUALIZATION */}
+      {/* SECTION 2: UNIT PAYMENT STATUS */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Unit Payment Status Stacked Bar */}
+        <Card data-testid="chart-unit-payment-status">
+          <CardHeader>
+            <CardTitle>Unit Payment Status</CardTitle>
+            <CardDescription>Payment status breakdown by unit</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart
+                data={[
+                  {
+                    name: 'All Units',
+                    current: 20,
+                    days30: 2,
+                    days90: 1,
+                    attorney: 1,
+                  },
+                ]}
+                layout="vertical"
+              >
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis type="number" />
+                <YAxis type="category" dataKey="name" />
+                <Tooltip />
+                <Legend />
+                <Bar dataKey="current" stackId="a" fill="hsl(142, 76%, 36%)" name="Current (20)" />
+                <Bar dataKey="days30" stackId="a" fill="hsl(48, 96%, 53%)" name="30-60 Days (2)" />
+                <Bar dataKey="days90" stackId="a" fill="hsl(25, 95%, 53%)" name="90+ Days (1)" />
+                <Bar dataKey="attorney" stackId="a" fill="hsl(0, 84%, 60%)" name="Attorney (1)" />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        {/* Collection Rate Gauge */}
+        <Card data-testid="chart-collection-gauge">
+          <CardHeader>
+            <CardTitle>Collection Rate</CardTitle>
+            <CardDescription>Overall collection performance</CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col items-center justify-center">
+            <div className="relative w-full max-w-sm">
+              <ResponsiveContainer width="100%" height={250}>
+                <PieChart>
+                  <Pie
+                    data={[
+                      { name: 'Collected', value: june2025Data.collectionRate },
+                      { name: 'Outstanding', value: 100 - june2025Data.collectionRate },
+                    ]}
+                    cx="50%"
+                    cy="50%"
+                    startAngle={180}
+                    endAngle={0}
+                    innerRadius={80}
+                    outerRadius={120}
+                    dataKey="value"
+                  >
+                    <Cell fill="hsl(142, 76%, 36%)" />
+                    <Cell fill="hsl(0, 0%, 90%)" />
+                  </Pie>
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="text-center">
+                  <div className="text-5xl font-bold" data-testid="text-collection-rate">{june2025Data.collectionRate}%</div>
+                  <div className="text-sm text-muted-foreground">Collected</div>
+                </div>
+              </div>
+            </div>
+            <div className="mt-4 space-y-2 w-full">
+              <div className="flex justify-between items-center">
+                <span className="text-sm">Monthly Maintenance Collected</span>
+                <span className="font-semibold" data-testid="text-collected-amount">${june2025Data.revenueCollected.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm">Outstanding Balance</span>
+                <span className="font-semibold text-destructive" data-testid="text-outstanding-amount">${(june2025Data.revenueExpected - june2025Data.revenueCollected).toLocaleString()}</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* SECTION 3: REVENUE COLLECTION VISUALIZATION */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Donut Chart */}
         <Card data-testid="chart-revenue-donut">
