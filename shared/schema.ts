@@ -163,6 +163,79 @@ export const notifications = pgTable("notifications", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+// Bank Accounts table (for financial reporting - tracks all bank accounts and reconciliations)
+export const bankAccounts = pgTable("bank_accounts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  accountName: text("account_name").notNull(), // 'Popular Bank - Operating (1343)', 'Truist Bank - Reserve (5602)', etc.
+  accountType: text("account_type").notNull(), // 'operating', 'reserve', 'special_assessment', 'debt_service', 'petty_cash'
+  bankName: text("bank_name").notNull(), // 'Popular Bank', 'Truist Bank'
+  accountNumber: text("account_number"), // Last 4 digits or full account number
+  currentBalance: decimal("current_balance", { precision: 10, scale: 2 }).notNull().default("0"),
+  lastReconciled: timestamp("last_reconciled"),
+  reconciledBalance: decimal("reconciled_balance", { precision: 10, scale: 2 }),
+  outstandingChecks: jsonb("outstanding_checks"), // Array of {checkNumber, amount, payee, date}
+  status: text("status").notNull().default("active"), // 'active', 'closed'
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Monthly Budget table (for actual vs budget comparisons)
+export const monthlyBudget = pgTable("monthly_budget", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  year: integer("year").notNull(),
+  category: text("category").notNull(), // 'assessment_income', 'reserve_assessment', 'management_fees', 'utilities', etc.
+  subcategory: text("subcategory"), // 'water_sewer', 'electricity', 'elevator_maintenance', etc.
+  monthlyBudget: decimal("monthly_budget", { precision: 10, scale: 2 }).notNull(),
+  annualBudget: decimal("annual_budget", { precision: 10, scale: 2 }).notNull(),
+  categoryType: text("category_type").notNull(), // 'revenue' or 'expense'
+  notes: text("notes"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Budget Proposals table (AI-generated budget proposals)
+export const budgetProposals = pgTable("budget_proposals", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  proposalYear: integer("proposal_year").notNull(), // Year this budget is for (e.g., 2026)
+  generatedAt: timestamp("generated_at").notNull().defaultNow(),
+  generatedBy: varchar("generated_by").notNull(), // user ID or 'system'
+  executiveSummary: text("executive_summary").notNull(),
+  recommendedAssessment: decimal("recommended_assessment", { precision: 10, scale: 2 }).notNull(), // Per unit monthly
+  assessmentChange: text("assessment_change"), // '+5%', '-2%', 'No Change'
+  scenarios: jsonb("scenarios").notNull(), // {conservative: {...}, moderate: {...}, optimistic: {...}}
+  revenueProjections: jsonb("revenue_projections").notNull(), // Detailed revenue breakdown
+  expenseProjections: jsonb("expense_projections").notNull(), // Detailed expense breakdown
+  capitalProjects: jsonb("capital_projects"), // Array of proposed projects
+  risks: jsonb("risks"), // Array of identified risks
+  recommendations: jsonb("recommendations"), // Array of action items
+  aiModel: text("ai_model").default("claude-sonnet-4-20250514"), // AI model used for generation
+  pdfUrl: text("pdf_url"), // URL to generated PDF report
+  status: text("status").notNull().default("draft"), // 'draft', 'under_review', 'approved', 'rejected', 'implemented'
+  approvedBy: varchar("approved_by"), // user ID
+  approvedAt: timestamp("approved_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Financial Reports table (Monthly PDF reports)
+export const financialReports = pgTable("financial_reports", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  reportMonth: integer("report_month").notNull(), // 1-12
+  reportYear: integer("report_year").notNull(),
+  reportType: text("report_type").notNull().default("monthly"), // 'monthly', 'annual', 'quarterly'
+  generatedAt: timestamp("generated_at").notNull().defaultNow(),
+  generatedBy: varchar("generated_by").notNull(), // user ID or 'system'
+  netIncome: decimal("net_income", { precision: 10, scale: 2 }),
+  collectionRate: decimal("collection_rate", { precision: 5, scale: 2 }), // Percentage
+  totalCash: decimal("total_cash", { precision: 10, scale: 2 }),
+  unitsInArrears: integer("units_in_arrears"),
+  aiCommentary: text("ai_commentary"), // AI-generated management discussion & analysis
+  pdfUrl: text("pdf_url").notNull(), // URL to generated PDF
+  pdfFilename: text("pdf_filename").notNull(),
+  emailedTo: jsonb("emailed_to"), // Array of email addresses report was sent to
+  emailedAt: timestamp("emailed_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
@@ -220,6 +293,30 @@ export const insertNotificationSchema = createInsertSchema(notifications).omit({
   createdAt: true,
 });
 
+export const insertBankAccountSchema = createInsertSchema(bankAccounts).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertMonthlyBudgetSchema = createInsertSchema(monthlyBudget).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertBudgetProposalSchema = createInsertSchema(budgetProposals).omit({
+  id: true,
+  generatedAt: true,
+  createdAt: true,
+});
+
+export const insertFinancialReportSchema = createInsertSchema(financialReports).omit({
+  id: true,
+  generatedAt: true,
+  createdAt: true,
+});
+
 // Types
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -253,3 +350,15 @@ export type BoardAction = typeof boardActions.$inferSelect;
 
 export type InsertNotification = z.infer<typeof insertNotificationSchema>;
 export type Notification = typeof notifications.$inferSelect;
+
+export type InsertBankAccount = z.infer<typeof insertBankAccountSchema>;
+export type BankAccount = typeof bankAccounts.$inferSelect;
+
+export type InsertMonthlyBudget = z.infer<typeof insertMonthlyBudgetSchema>;
+export type MonthlyBudget = typeof monthlyBudget.$inferSelect;
+
+export type InsertBudgetProposal = z.infer<typeof insertBudgetProposalSchema>;
+export type BudgetProposal = typeof budgetProposals.$inferSelect;
+
+export type InsertFinancialReport = z.infer<typeof insertFinancialReportSchema>;
+export type FinancialReport = typeof financialReports.$inferSelect;
