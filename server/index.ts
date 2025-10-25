@@ -10,7 +10,7 @@ app.use(
   cors({
     origin: [
       "http://localhost:5000",
-      "https://YOUR-NETLIFY-URL.netlify.app", // Replace with your actual Netlify URL
+      "https://heritage-condo-management-north-miami.netlify.app",
     ],
     credentials: true,
   }),
