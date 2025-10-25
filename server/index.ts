@@ -13,8 +13,7 @@ app.use(
       "https://heritage-condo-management-north-miami.netlify.app",
     ],
     credentials: true,
-  }),
-);
+  }));
 
 declare module "http" {
   interface IncomingMessage {
