@@ -136,3 +136,75 @@ Each owner account is linked to their respective unit and can view only their ow
 - Vite for frontend bundling and hot module replacement
 
 **Third-Party UI Libraries**: Extensive use of Radix UI primitives for accessible component implementation (dialogs, dropdowns, tooltips, etc.) styled with Tailwind CSS utility classes.
+
+**Data Visualization**: Recharts library provides responsive, accessible charts for the visual Board Dashboard including donut charts, bar charts, pie charts, line charts, and custom gauge visualizations.
+
+## Key Features Implemented
+
+### Visual Board Dashboard
+
+**Route**: `/board-dashboard-visual` (board and management roles only)
+
+The visual Board Dashboard provides comprehensive financial insights through interactive charts and KPIs. The dashboard displays June 2025 data and is fully responsive across desktop, tablet, and mobile devices.
+
+**Dashboard Sections**:
+
+1. **Hero Stats** - Four KPI cards displaying critical metrics:
+   - Total Cash On Hand: $286,584
+   - YTD Net Income: +$49,805 ($8,301/month average)
+   - Units Paying: 20/24 (4 delinquent)
+   - Collection Rate: 83% (target: 85%)
+
+2. **Unit Payment Status** - Visual breakdown of payment status:
+   - Stacked horizontal bar chart showing Current (20), 30-60 Days (2), 90+ Days (1), Attorney Referral (1)
+   - Semi-circle gauge chart displaying 83% collection rate
+   - Supporting metrics: $12,988 collected, $895 outstanding
+
+3. **Revenue Collection** - June revenue analysis:
+   - Donut chart: 93.6% collection rate ($12,988 of $13,883)
+   - Bar chart: Revenue by category (Maintenance, Assessments, Late Fees) vs. Budget
+
+4. **Expense Performance** - Spending analysis:
+   - Horizontal bar chart: Top expense variances (over/under budget)
+   - Pie chart: Expense breakdown (Insurance 28%, Loan Payment 13%, Management 11%, etc.)
+
+5. **6-Month Financial Trend** - Historical performance (January-June 2025):
+   - Line chart showing Revenue, Expenses, and Net Income trends
+   - Demonstrates consistent $8,000+ monthly net income
+
+6. **Alerts** - Actionable notifications:
+   - Critical alerts (red): Unit 403 attorney referral, elevator repair needed
+   - Warnings (yellow): 4 units 30-90 days delinquent, insurance renewal due
+   - Good news (green): 20 units current, reserve fund target met
+
+7. **Quick Actions** - Four action buttons for common workflows:
+   - View Full Financials, Pay Bills Queue (5), Send Delinquency Notices, Generate Monthly Report
+
+**Technical Implementation**:
+- Component: `client/src/pages/board-dashboard-visual.tsx`
+- Reusable KPICard component: `client/src/components/KPICard.tsx`
+- Recharts library for all visualizations
+- Responsive grid layouts: 4-column (desktop) → 2-column (tablet) → 1-column (mobile)
+- All interactive elements include `data-testid` attributes for testing
+- Color-coded status indicators (green=good, yellow=warning, red=critical)
+
+### Vendor Management System
+
+**Route**: `/vendors` (board and management roles only)
+
+Complete CRUD operations for managing service providers and contractors:
+- List view with search functionality and color-coded payment status
+- Create/edit forms with Zod validation
+- Delete confirmation dialogs using AlertDialog
+- Payment status tracking: Paid (green), Due Soon (yellow), Overdue (red)
+
+**Implementation Files**:
+- `client/src/pages/vendors.tsx` - List view
+- `client/src/pages/vendor-form.tsx` - Create/edit form
+- Backend routes: `server/routes.ts` (`/api/vendors/*`)
+- Database table: `vendors` (name, type, contact info, payment status)
+
+**Role Permissions**:
+- Board + Management: Create, edit vendors/invoices
+- Board only: Delete vendors
+- Owners: No access to vendor management
