@@ -51,11 +51,17 @@ export function isAuthenticated(): boolean {
 }
 
 export async function login(username: string, password: string): Promise<User> {
+  console.log("🔐 Login attempt:", username);
+  
   const res = await apiRequest("POST", "/api/auth/login", { username, password });
+  console.log("✅ API response received:", res.status, res.statusText);
+  
   const response: AuthResponse = await res.json();
+  console.log("📦 Parsed response:", response);
 
   setToken(response.token);
   setUser(response.user);
+  console.log("💾 Saved to localStorage");
   
   return response.user;
 }
