@@ -1,0 +1,5 @@
+DATABASE_URL=postgresql://neondb_owner:npg_bkGF81aZLyuP@ep-lucky-pine-afxmom66-pooler.us-west-2.aws.neon.tech/neondb?sslmode=require
+SESSION_SECRET=48a6bIwwtQtVExCYQ1BuGlkY1QSbtNveFzkuOmA0GtoGZRHa6hXx+YSjfQBUWuwX0nvU+bLDfcAi00YO6H9gYg==
+NODE_ENV=development
+PORT=5000
+

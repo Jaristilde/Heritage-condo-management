@@ -9,7 +9,8 @@ import type {
   PaymentPlan, InsertPaymentPlan,
   Assessment, InsertAssessment,
   Vendor, InsertVendor,
-  VendorInvoice, InsertVendorInvoice,
+  Invoice, InsertInvoice,
+  LedgerEntry, InsertLedgerEntry,
   Document, InsertDocument,
   BoardAction, InsertBoardAction,
   Notification, InsertNotification
@@ -59,14 +60,24 @@ export interface IStorage {
   updateVendor(id: string, vendor: Partial<InsertVendor>): Promise<Vendor | undefined>;
   deleteVendor(id: string): Promise<void>;
   
-  // Vendor Invoice operations
-  getAllVendorInvoices(): Promise<VendorInvoice[]>;
-  getVendorInvoice(id: string): Promise<VendorInvoice | undefined>;
-  getVendorInvoicesByVendor(vendorId: string): Promise<VendorInvoice[]>;
-  getVendorInvoicesByStatus(status: string): Promise<VendorInvoice[]>;
-  createVendorInvoice(invoice: InsertVendorInvoice): Promise<VendorInvoice>;
-  updateVendorInvoice(id: string, invoice: Partial<InsertVendorInvoice>): Promise<VendorInvoice | undefined>;
-  deleteVendorInvoice(id: string): Promise<void>;
+  // Invoice operations
+  getAllInvoices(): Promise<Invoice[]>;
+  getInvoice(id: string): Promise<Invoice | undefined>;
+  getInvoicesByVendor(vendorId: string): Promise<Invoice[]>;
+  getInvoicesByStatus(status: string): Promise<Invoice[]>;
+  getInvoicesWithFilters(filters: {
+    status?: string;
+    vendorId?: string;
+    startDate?: string;
+    endDate?: string;
+  }): Promise<Invoice[]>;
+  createInvoice(invoice: InsertInvoice): Promise<Invoice>;
+  updateInvoice(id: string, invoice: Partial<InsertInvoice>): Promise<Invoice | undefined>;
+  deleteInvoice(id: string): Promise<void>;
+
+  // Ledger Entry operations
+  getLedgerEntriesByUnit(unitId: string): Promise<LedgerEntry[]>;
+  createLedgerEntry(entry: InsertLedgerEntry): Promise<LedgerEntry>;
   
   // Document operations
   getDocuments(relatedTo?: string, relatedId?: string): Promise<Document[]>;
@@ -257,45 +268,87 @@ export class DbStorage implements IStorage {
     await db.delete(schema.vendors).where(eq(schema.vendors.id, id));
   }
 
-  // Vendor Invoice operations
-  async getAllVendorInvoices(): Promise<VendorInvoice[]> {
-    return db.select().from(schema.vendorInvoices).orderBy(desc(schema.vendorInvoices.invoiceDate));
+  // Invoice operations
+  async getAllInvoices(): Promise<Invoice[]> {
+    return db.select().from(schema.invoices).orderBy(desc(schema.invoices.invoiceDate));
   }
 
-  async getVendorInvoice(id: string): Promise<VendorInvoice | undefined> {
-    const result = await db.select().from(schema.vendorInvoices).where(eq(schema.vendorInvoices.id, id));
+  async getInvoice(id: string): Promise<Invoice | undefined> {
+    const result = await db.select().from(schema.invoices).where(eq(schema.invoices.id, id));
     return result[0];
   }
 
-  async getVendorInvoicesByVendor(vendorId: string): Promise<VendorInvoice[]> {
+  async getInvoicesByVendor(vendorId: string): Promise<Invoice[]> {
     return db.select()
-      .from(schema.vendorInvoices)
-      .where(eq(schema.vendorInvoices.vendorId, vendorId))
-      .orderBy(desc(schema.vendorInvoices.invoiceDate));
+      .from(schema.invoices)
+      .where(eq(schema.invoices.vendorId, vendorId))
+      .orderBy(desc(schema.invoices.invoiceDate));
   }
 
-  async getVendorInvoicesByStatus(status: string): Promise<VendorInvoice[]> {
+  async getInvoicesByStatus(status: string): Promise<Invoice[]> {
     return db.select()
-      .from(schema.vendorInvoices)
-      .where(eq(schema.vendorInvoices.status, status))
-      .orderBy(desc(schema.vendorInvoices.invoiceDate));
+      .from(schema.invoices)
+      .where(eq(schema.invoices.status, status))
+      .orderBy(desc(schema.invoices.invoiceDate));
   }
 
-  async createVendorInvoice(invoice: InsertVendorInvoice): Promise<VendorInvoice> {
-    const result = await db.insert(schema.vendorInvoices).values(invoice).returning();
+  async getInvoicesWithFilters(filters: {
+    status?: string;
+    vendorId?: string;
+    startDate?: string;
+    endDate?: string;
+  }): Promise<Invoice[]> {
+    let query = db.select().from(schema.invoices);
+    const conditions = [];
+
+    if (filters.status) {
+      conditions.push(eq(schema.invoices.status, filters.status));
+    }
+    if (filters.vendorId) {
+      conditions.push(eq(schema.invoices.vendorId, filters.vendorId));
+    }
+    if (filters.startDate) {
+      conditions.push(sql`${schema.invoices.invoiceDate} >= ${new Date(filters.startDate)}`);
+    }
+    if (filters.endDate) {
+      conditions.push(sql`${schema.invoices.invoiceDate} <= ${new Date(filters.endDate)}`);
+    }
+
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions)) as any;
+    }
+
+    return query.orderBy(desc(schema.invoices.invoiceDate));
+  }
+
+  async createInvoice(invoice: InsertInvoice): Promise<Invoice> {
+    const result = await db.insert(schema.invoices).values(invoice).returning();
     return result[0];
   }
 
-  async updateVendorInvoice(id: string, invoice: Partial<InsertVendorInvoice>): Promise<VendorInvoice | undefined> {
-    const result = await db.update(schema.vendorInvoices)
+  async updateInvoice(id: string, invoice: Partial<InsertInvoice>): Promise<Invoice | undefined> {
+    const result = await db.update(schema.invoices)
       .set(invoice)
-      .where(eq(schema.vendorInvoices.id, id))
+      .where(eq(schema.invoices.id, id))
       .returning();
     return result[0];
   }
 
-  async deleteVendorInvoice(id: string): Promise<void> {
-    await db.delete(schema.vendorInvoices).where(eq(schema.vendorInvoices.id, id));
+  async deleteInvoice(id: string): Promise<void> {
+    await db.delete(schema.invoices).where(eq(schema.invoices.id, id));
+  }
+
+  // Ledger Entry operations
+  async getLedgerEntriesByUnit(unitId: string): Promise<LedgerEntry[]> {
+    return db.select()
+      .from(schema.ledgerEntries)
+      .where(eq(schema.ledgerEntries.unitId, unitId))
+      .orderBy(desc(schema.ledgerEntries.date));
+  }
+
+  async createLedgerEntry(entry: InsertLedgerEntry): Promise<LedgerEntry> {
+    const result = await db.insert(schema.ledgerEntries).values(entry).returning();
+    return result[0];
   }
 
   // Document operations

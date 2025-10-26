@@ -2,8 +2,17 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { hashPassword, verifyPassword, generateToken, authMiddleware, requireRole } from "./auth";
+import { uploadInvoice } from "./middleware/upload";
 import { z } from "zod";
-import { insertUserSchema, insertUnitSchema, insertPaymentSchema, insertVendorSchema, insertAssessmentSchema } from "@shared/schema";
+import {
+  insertUserSchema,
+  insertUnitSchema,
+  insertPaymentSchema,
+  insertVendorSchema,
+  insertAssessmentSchema,
+  insertInvoiceSchema,
+  insertLedgerEntrySchema
+} from "@shared/schema";
 import Stripe from 'stripe';
 import { generateMonthlyFinancialReport, type MonthlyReportData } from "./lib/pdfGenerator";
 import { generateFinancialCommentary, type FinancialData } from "./lib/aiCommentary";
@@ -337,29 +346,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Vendor Invoice routes
-  app.get("/api/vendor-invoices", authMiddleware, requireRole('board', 'management'), async (req, res) => {
+  // Invoice routes
+  app.get("/api/invoices", authMiddleware, requireRole('board', 'management'), async (req, res) => {
     try {
-      const { status, vendorId } = req.query;
-      let invoices;
-      
-      if (status) {
-        invoices = await storage.getVendorInvoicesByStatus(status as string);
-      } else if (vendorId) {
-        invoices = await storage.getVendorInvoicesByVendor(vendorId as string);
-      } else {
-        invoices = await storage.getAllVendorInvoices();
-      }
-      
+      const { status, vendorId, startDate, endDate } = req.query;
+
+      // Get invoices with filters
+      const invoices = await storage.getInvoicesWithFilters({
+        status: status as string,
+        vendorId: vendorId as string,
+        startDate: startDate as string,
+        endDate: endDate as string,
+      });
+
       res.json(invoices);
     } catch (error) {
       res.status(500).json({ error: "Server error" });
     }
   });
 
-  app.get("/api/vendor-invoices/:id", authMiddleware, requireRole('board', 'management'), async (req, res) => {
+  app.get("/api/invoices/:id", authMiddleware, requireRole('board', 'management'), async (req, res) => {
     try {
-      const invoice = await storage.getVendorInvoice(req.params.id);
+      const invoice = await storage.getInvoice(req.params.id);
       if (!invoice) {
         return res.status(404).json({ error: "Invoice not found" });
       }
@@ -369,23 +377,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/vendor-invoices", authMiddleware, requireRole('board', 'management'), async (req, res) => {
+  app.post("/api/invoices", authMiddleware, requireRole('board', 'management'), async (req, res) => {
     try {
       const userPayload = (req as any).user;
-      const data = {
+      const data = insertInvoiceSchema.parse({
         ...req.body,
         uploadedBy: userPayload.userId,
-      };
-      const invoice = await storage.createVendorInvoice(data);
+      });
+      const invoice = await storage.createInvoice(data);
       res.json(invoice);
     } catch (error) {
+      console.error('Create invoice error:', error);
       res.status(400).json({ error: "Invalid request" });
     }
   });
 
-  app.patch("/api/vendor-invoices/:id", authMiddleware, requireRole('board', 'management'), async (req, res) => {
+  app.put("/api/invoices/:id", authMiddleware, requireRole('board', 'management'), async (req, res) => {
     try {
-      const invoice = await storage.updateVendorInvoice(req.params.id, req.body);
+      const invoice = await storage.updateInvoice(req.params.id, req.body);
       if (!invoice) {
         return res.status(404).json({ error: "Invoice not found" });
       }
@@ -395,10 +404,118 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/vendor-invoices/:id", authMiddleware, requireRole('board'), async (req, res) => {
+  app.delete("/api/invoices/:id", authMiddleware, requireRole('board'), async (req, res) => {
     try {
-      await storage.deleteVendorInvoice(req.params.id);
+      await storage.deleteInvoice(req.params.id);
       res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Invoice file upload
+  app.post("/api/invoices/:id/upload", authMiddleware, requireRole('board', 'management'), uploadInvoice.single('file'), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "No file uploaded" });
+      }
+
+      const fileUrl = `/uploads/invoices/${req.file.filename}`;
+      const invoice = await storage.updateInvoice(req.params.id, {
+        fileUrl,
+        fileName: req.file.originalname,
+      });
+
+      if (!invoice) {
+        return res.status(404).json({ error: "Invoice not found" });
+      }
+
+      res.json({ fileUrl, fileName: req.file.originalname });
+    } catch (error) {
+      console.error('Upload error:', error);
+      res.status(500).json({ error: "Upload failed" });
+    }
+  });
+
+  // Approve invoice
+  app.post("/api/invoices/:id/approve", authMiddleware, requireRole('board', 'management'), async (req, res) => {
+    try {
+      const userPayload = (req as any).user;
+      const invoice = await storage.updateInvoice(req.params.id, {
+        status: 'approved',
+        approvedBy: userPayload.userId,
+        approvedAt: new Date().toISOString(),
+      });
+
+      if (!invoice) {
+        return res.status(404).json({ error: "Invoice not found" });
+      }
+
+      res.json(invoice);
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Reject invoice
+  app.post("/api/invoices/:id/reject", authMiddleware, requireRole('board', 'management'), async (req, res) => {
+    try {
+      const userPayload = (req as any).user;
+      const { reason } = req.body;
+
+      if (!reason) {
+        return res.status(400).json({ error: "Rejection reason is required" });
+      }
+
+      const invoice = await storage.updateInvoice(req.params.id, {
+        status: 'rejected',
+        rejectedBy: userPayload.userId,
+        rejectedAt: new Date().toISOString(),
+        rejectionReason: reason,
+      });
+
+      if (!invoice) {
+        return res.status(404).json({ error: "Invoice not found" });
+      }
+
+      res.json(invoice);
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Bulk approve invoices
+  app.post("/api/invoices/bulk-approve", authMiddleware, requireRole('board', 'management'), async (req, res) => {
+    try {
+      const userPayload = (req as any).user;
+      const { invoiceIds } = req.body;
+
+      if (!invoiceIds || !Array.isArray(invoiceIds)) {
+        return res.status(400).json({ error: "Invoice IDs array is required" });
+      }
+
+      const results = await Promise.all(
+        invoiceIds.map(id =>
+          storage.updateInvoice(id, {
+            status: 'approved',
+            approvedBy: userPayload.userId,
+            approvedAt: new Date().toISOString(),
+          })
+        )
+      );
+
+      const approved = results.filter(r => r !== undefined).length;
+      res.json({ approved, total: invoiceIds.length });
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Ledger routes
+  app.get("/api/units/:id/ledger", authMiddleware, requireRole('board', 'management'), async (req, res) => {
+    try {
+      const ledgerEntries = await storage.getLedgerEntriesByUnit(req.params.id);
+      res.json(ledgerEntries);
     } catch (error) {
       res.status(500).json({ error: "Server error" });
     }

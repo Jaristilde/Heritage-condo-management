@@ -250,11 +250,21 @@ export default function VendorForm() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="maintenance">Maintenance</SelectItem>
-                          <SelectItem value="utility">Utility</SelectItem>
-                          <SelectItem value="insurance">Insurance</SelectItem>
-                          <SelectItem value="legal">Legal</SelectItem>
-                          <SelectItem value="contractor">Contractor</SelectItem>
+                          <SelectItem value="management_company">Management Company</SelectItem>
+                          <SelectItem value="accounting_cpa">Accounting/CPA</SelectItem>
+                          <SelectItem value="legal_attorney">Legal/Attorney</SelectItem>
+                          <SelectItem value="insurance_provider">Insurance Provider</SelectItem>
+                          <SelectItem value="elevator_service">Elevator Service</SelectItem>
+                          <SelectItem value="laundry_company">Laundry Company</SelectItem>
+                          <SelectItem value="cleaning_janitorial">Cleaning/Janitorial</SelectItem>
+                          <SelectItem value="security_camera">Security/Camera</SelectItem>
+                          <SelectItem value="fpl_electricity">FPL (Electricity)</SelectItem>
+                          <SelectItem value="comcast_internet_cable">Comcast (Internet/Cable)</SelectItem>
+                          <SelectItem value="water_city_north_miami">Water (City of North Miami)</SelectItem>
+                          <SelectItem value="fire_department">Fire Department</SelectItem>
+                          <SelectItem value="maintenance_repair">Maintenance/Repair</SelectItem>
+                          <SelectItem value="landscaping">Landscaping</SelectItem>
+                          <SelectItem value="other">Other</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />

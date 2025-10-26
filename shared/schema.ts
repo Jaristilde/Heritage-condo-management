@@ -92,7 +92,7 @@ export const vendors = pgTable("vendors", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   vendorName: text("vendor_name").notNull(),
   serviceType: text("service_type").notNull(), // 'Elevator Maintenance', 'Property Insurance', 'Electricity', etc.
-  vendorType: text("vendor_type").notNull(), // 'maintenance', 'legal', 'insurance', 'utility', 'contractor'
+  vendorType: text("vendor_type").notNull(), // 'management_company', 'accounting_cpa', 'legal_attorney', 'insurance_provider', 'elevator_service', 'laundry_company', 'cleaning_janitorial', 'security_camera', 'fpl_electricity', 'comcast_internet_cable', 'water_city_north_miami', 'fire_department', 'maintenance_repair', 'landscaping', 'other'
   contactName: text("contact_name"),
   contactEmail: text("contact_email"),
   contactPhone: text("contact_phone"),
@@ -107,25 +107,44 @@ export const vendors = pgTable("vendors", {
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
-// Vendor Invoices table (for invoice management workflow)
-export const vendorInvoices = pgTable("vendor_invoices", {
+// Invoices table (vendor invoice management)
+export const invoices = pgTable("invoices", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   vendorId: varchar("vendor_id").notNull(),
-  invoiceNumber: text("invoice_number"),
-  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  invoiceNumber: text("invoice_number").notNull(),
   invoiceDate: timestamp("invoice_date").notNull(),
-  dueDate: timestamp("due_date"),
+  dueDate: timestamp("due_date").notNull(),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  glCode: text("gl_code"), // General Ledger code for accounting
   description: text("description"),
-  documentUrl: text("document_url"), // URL to uploaded invoice PDF
+  fileUrl: text("file_url"), // URL to uploaded invoice PDF
+  fileName: text("file_name"), // Original filename
   status: text("status").notNull().default("pending"), // 'pending', 'approved', 'rejected', 'paid'
-  uploadedBy: varchar("uploaded_by").notNull(), // user ID
-  approvedBy: varchar("approved_by"), // user ID
-  paidDate: timestamp("paid_date"),
+  paymentDate: timestamp("payment_date"),
   paymentMethod: text("payment_method"), // 'check', 'ach', 'wire'
   checkNumber: text("check_number"),
+  uploadedBy: varchar("uploaded_by").notNull(), // user ID
+  approvedBy: varchar("approved_by"), // user ID who approved
+  approvedAt: timestamp("approved_at"), // when approved
+  rejectedBy: varchar("rejected_by"), // user ID who rejected
+  rejectedAt: timestamp("rejected_at"), // when rejected
+  rejectionReason: text("rejection_reason"), // why rejected
   notes: text("notes"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Ledger Entries table (unit financial transaction ledger)
+export const ledgerEntries = pgTable("ledger_entries", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  unitId: varchar("unit_id").notNull(),
+  entryType: text("entry_type").notNull(), // 'assessment', 'payment', 'late_fee', 'interest', 'adjustment'
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  date: timestamp("date").notNull(),
+  description: text("description").notNull(),
+  referenceId: varchar("reference_id"), // Reference to related payment, assessment, etc.
+  balance: decimal("balance", { precision: 10, scale: 2 }).notNull(), // Running balance after this entry
+  createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
 // Documents table (for file storage references)
@@ -216,6 +235,112 @@ export const budgetProposals = pgTable("budget_proposals", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+// Unit Owners join table (many-to-many relationship)
+export const unitOwners = pgTable("unit_owners", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  unitId: varchar("unit_id").notNull(),
+  ownerId: varchar("owner_id").notNull(),
+  isPrimary: boolean("is_primary").notNull().default(false),
+  startDate: timestamp("start_date").notNull().defaultNow(),
+  endDate: timestamp("end_date"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Chart of Accounts
+export const accounts = pgTable("accounts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  code: text("code").notNull().unique(),
+  name: text("name").notNull(),
+  accountType: text("account_type").notNull(), // 'asset', 'liability', 'equity', 'income', 'expense', 'reserve', 'sa_income', 'sa_expense'
+  parentId: varchar("parent_id"),
+  isActive: boolean("is_active").notNull().default(true),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Budget Plans
+export const budgetPlans = pgTable("budget_plans", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  fiscalYear: integer("fiscal_year").notNull(),
+  name: text("name").notNull(),
+  status: text("status").notNull().default("draft"), // 'draft', 'board_review', 'adopted'
+  createdBy: varchar("created_by").notNull(),
+  adoptedAt: timestamp("adopted_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Budget Lines
+export const budgetLines = pgTable("budget_lines", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  planId: varchar("plan_id").notNull(),
+  accountId: varchar("account_id").notNull(),
+  annualTotal: decimal("annual_total", { precision: 10, scale: 2 }).notNull(),
+  monthlyJson: jsonb("monthly_json").notNull(), // Array of 12 monthly amounts
+  notes: text("notes"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// GL Actuals (for historical imports and future transactions)
+export const glActuals = pgTable("gl_actuals", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  accountId: varchar("account_id").notNull(),
+  period: timestamp("period").notNull(), // First day of month
+  debit: decimal("debit", { precision: 10, scale: 2 }).notNull().default("0"),
+  credit: decimal("credit", { precision: 10, scale: 2 }).notNull().default("0"),
+  source: text("source").notNull().default("imported"), // 'imported', 'historic', 'manual'
+  description: text("description"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Bank Transactions (imported register)
+export const bankTransactions = pgTable("bank_transactions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  accountName: text("account_name").notNull(),
+  date: timestamp("date").notNull(),
+  description: text("description").notNull(),
+  checkNo: text("check_no"),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  source: text("source").notNull().default("imported"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Historic AR Snapshots (read-only)
+export const historicArSnapshots = pgTable("historic_ar_snapshots", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  asOfDate: timestamp("as_of_date").notNull(),
+  unitNumber: text("unit_number").notNull(),
+  ownerName: text("owner_name").notNull(),
+  fund: text("fund").notNull(), // 'Operating', 'Special Assessment'
+  bucket: text("bucket").notNull(), // '0-30', '30-60', '60-90', '>90'
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Historic AP Snapshots (read-only)
+export const historicApSnapshots = pgTable("historic_ap_snapshots", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  asOfDate: timestamp("as_of_date").notNull(),
+  vendor: text("vendor").notNull(),
+  bucket: text("bucket").notNull(), // '0-30', '30-60', '60-90', '>90'
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Audit Log
+export const auditLog = pgTable("audit_log", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  action: text("action").notNull(), // 'create', 'update', 'delete', 'import', 'export'
+  entityType: text("entity_type").notNull(), // 'invoice', 'budget', 'owner', etc.
+  entityId: varchar("entity_id"),
+  details: jsonb("details"), // JSON object with relevant data
+  ipAddress: text("ip_address"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 // Financial Reports table (Monthly PDF reports)
 export const financialReports = pgTable("financial_reports", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -273,10 +398,15 @@ export const insertVendorSchema = createInsertSchema(vendors).omit({
   updatedAt: true,
 });
 
-export const insertVendorInvoiceSchema = createInsertSchema(vendorInvoices).omit({
+export const insertInvoiceSchema = createInsertSchema(invoices).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
+});
+
+export const insertLedgerEntrySchema = createInsertSchema(ledgerEntries).omit({
+  id: true,
+  createdAt: true,
 });
 
 export const insertDocumentSchema = createInsertSchema(documents).omit({
@@ -317,6 +447,54 @@ export const insertFinancialReportSchema = createInsertSchema(financialReports).
   createdAt: true,
 });
 
+export const insertUnitOwnerSchema = createInsertSchema(unitOwners).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertAccountSchema = createInsertSchema(accounts).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertBudgetPlanSchema = createInsertSchema(budgetPlans).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertBudgetLineSchema = createInsertSchema(budgetLines).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertGlActualSchema = createInsertSchema(glActuals).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertBankTransactionSchema = createInsertSchema(bankTransactions).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertHistoricArSnapshotSchema = createInsertSchema(historicArSnapshots).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertHistoricApSnapshotSchema = createInsertSchema(historicApSnapshots).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertAuditLogSchema = createInsertSchema(auditLog).omit({
+  id: true,
+  createdAt: true,
+});
+
 // Types
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -339,8 +517,11 @@ export type Assessment = typeof assessments.$inferSelect;
 export type InsertVendor = z.infer<typeof insertVendorSchema>;
 export type Vendor = typeof vendors.$inferSelect;
 
-export type InsertVendorInvoice = z.infer<typeof insertVendorInvoiceSchema>;
-export type VendorInvoice = typeof vendorInvoices.$inferSelect;
+export type InsertInvoice = z.infer<typeof insertInvoiceSchema>;
+export type Invoice = typeof invoices.$inferSelect;
+
+export type InsertLedgerEntry = z.infer<typeof insertLedgerEntrySchema>;
+export type LedgerEntry = typeof ledgerEntries.$inferSelect;
 
 export type InsertDocument = z.infer<typeof insertDocumentSchema>;
 export type Document = typeof documents.$inferSelect;
@@ -362,3 +543,30 @@ export type BudgetProposal = typeof budgetProposals.$inferSelect;
 
 export type InsertFinancialReport = z.infer<typeof insertFinancialReportSchema>;
 export type FinancialReport = typeof financialReports.$inferSelect;
+
+export type InsertUnitOwner = z.infer<typeof insertUnitOwnerSchema>;
+export type UnitOwner = typeof unitOwners.$inferSelect;
+
+export type InsertAccount = z.infer<typeof insertAccountSchema>;
+export type Account = typeof accounts.$inferSelect;
+
+export type InsertBudgetPlan = z.infer<typeof insertBudgetPlanSchema>;
+export type BudgetPlan = typeof budgetPlans.$inferSelect;
+
+export type InsertBudgetLine = z.infer<typeof insertBudgetLineSchema>;
+export type BudgetLine = typeof budgetLines.$inferSelect;
+
+export type InsertGlActual = z.infer<typeof insertGlActualSchema>;
+export type GlActual = typeof glActuals.$inferSelect;
+
+export type InsertBankTransaction = z.infer<typeof insertBankTransactionSchema>;
+export type BankTransaction = typeof bankTransactions.$inferSelect;
+
+export type InsertHistoricArSnapshot = z.infer<typeof insertHistoricArSnapshotSchema>;
+export type HistoricArSnapshot = typeof historicArSnapshots.$inferSelect;
+
+export type InsertHistoricApSnapshot = z.infer<typeof insertHistoricApSnapshotSchema>;
+export type HistoricApSnapshot = typeof historicApSnapshots.$inferSelect;
+
+export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;
+export type AuditLog = typeof auditLog.$inferSelect;

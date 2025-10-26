@@ -29,6 +29,9 @@ app.use(
 );
 app.use(express.urlencoded({ extended: false }));
 
+// Serve uploaded files
+app.use('/uploads', express.static('uploads'));
+
 app.use((req, res, next) => {
   // Log ALL incoming requests immediately
   if (req.path.startsWith("/api")) {

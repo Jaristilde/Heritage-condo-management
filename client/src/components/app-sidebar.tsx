@@ -1,12 +1,17 @@
 import {
   Home,
   Building2,
-  DollarSign,
-  FileText,
   Users,
-  Settings,
+  Briefcase,
+  Receipt,
+  Calculator,
   BarChart3,
+  FolderOpen,
+  Upload,
+  Settings,
   CreditCard,
+  FileText,
+  DollarSign,
 } from "lucide-react";
 import {
   Sidebar,
@@ -17,7 +22,6 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarHeader,
 } from "@/components/ui/sidebar";
 import { Link } from "wouter";
 
@@ -25,94 +29,92 @@ interface AppSidebarProps {
   role: string;
 }
 
+interface NavSection {
+  title: string;
+  items: {
+    title: string;
+    url: string;
+    icon: any;
+  }[];
+}
+
 export function AppSidebar({ role }: AppSidebarProps) {
-  const boardManagementItems = [
+  const boardManagementSections: NavSection[] = [
     {
-      title: "Dashboard",
-      url: "/",
-      icon: Home,
+      title: "Overview",
+      items: [
+        { title: "Dashboard", url: "/", icon: Home },
+      ],
     },
     {
-      title: "Units & Owners",
-      url: "/units",
-      icon: Building2,
+      title: "Financial",
+      items: [
+        { title: "Invoices", url: "/invoices", icon: Receipt },
+        { title: "Budgets", url: "/budgets", icon: Calculator },
+        { title: "Reports", url: "/reports", icon: BarChart3 },
+        { title: "Units & Ledgers", url: "/units", icon: Building2 },
+      ],
     },
     {
-      title: "Payments",
-      url: "/payments",
-      icon: CreditCard,
+      title: "Operations",
+      items: [
+        { title: "Owners", url: "/owners", icon: Users },
+        { title: "Vendors", url: "/vendors", icon: Briefcase },
+        { title: "Assessments", url: "/assessments", icon: DollarSign },
+        { title: "Payments", url: "/payments", icon: CreditCard },
+        { title: "Documents", url: "/documents", icon: FolderOpen },
+      ],
     },
     {
-      title: "Financial Reports",
-      url: "/reports",
-      icon: BarChart3,
-    },
-    {
-      title: "Assessments",
-      url: "/assessments",
-      icon: DollarSign,
-    },
-    {
-      title: "Vendors",
-      url: "/vendors",
-      icon: Users,
-    },
-    {
-      title: "Documents",
-      url: "/documents",
-      icon: FileText,
+      title: "Admin",
+      items: [
+        { title: "Import Data", url: "/import", icon: Upload },
+        { title: "Settings", url: "/settings", icon: Settings },
+      ],
     },
   ];
 
-  const ownerItems = [
+  const ownerSections: NavSection[] = [
     {
-      title: "My Account",
-      url: "/",
-      icon: Home,
-    },
-    {
-      title: "Make Payment",
-      url: "/payment",
-      icon: CreditCard,
-    },
-    {
-      title: "Payment History",
-      url: "/history",
-      icon: FileText,
+      title: "Owner Portal",
+      items: [
+        { title: "My Account", url: "/", icon: Home },
+        { title: "Make Payment", url: "/payment", icon: CreditCard },
+        { title: "Payment History", url: "/history", icon: FileText },
+      ],
     },
   ];
 
-  const menuItems = role === "owner" ? ownerItems : boardManagementItems;
+  const sections = role === "owner" ? ownerSections : boardManagementSections;
 
   return (
-    <Sidebar data-testid="sidebar">
-      <SidebarHeader className="p-4">
-        <div className="flex items-center gap-2">
-          <Building2 className="w-8 h-8 text-primary" />
-          <div>
-            <h2 className="text-lg font-bold">Heritage</h2>
-            <p className="text-xs text-muted-foreground">Condominium Association</p>
-          </div>
-        </div>
-      </SidebarHeader>
-      <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupLabel>{role === "owner" ? "Owner Portal" : "Management"}</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {menuItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild data-testid={`sidebar-${item.title.toLowerCase().replace(/\s+/g, "-")}`}>
-                    <Link href={item.url}>
-                      <item.icon className="w-4 h-4" />
-                      <span>{item.title}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+    <Sidebar data-testid="sidebar" className="border-r border-border/40">
+      <SidebarContent className="py-4">
+        {sections.map((section) => (
+          <SidebarGroup key={section.title} className="mb-2">
+            <SidebarGroupLabel className="text-xs font-semibold text-muted-foreground px-4 mb-2">
+              {section.title}
+            </SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {section.items.map((item) => (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton
+                      asChild
+                      data-testid={`sidebar-${item.title.toLowerCase().replace(/\s+/g, "-")}`}
+                      className="group transition-colors hover:bg-accent hover:text-accent-foreground data-[active=true]:bg-accent data-[active=true]:text-accent-foreground"
+                    >
+                      <Link href={item.url}>
+                        <item.icon className="w-4 h-4 shrink-0 transition-colors group-hover:text-cyan-600 dark:group-hover:text-cyan-400" />
+                        <span className="truncate">{item.title}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        ))}
       </SidebarContent>
     </Sidebar>
   );

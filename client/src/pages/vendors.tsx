@@ -23,7 +23,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, Search, Pencil, Trash2, FileText } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, FileText, Receipt } from "lucide-react";
 import { format } from "date-fns";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -206,6 +206,15 @@ export default function Vendors() {
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-2">
+                            <Link href={`/invoices?vendorId=${vendor.id}`}>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                title="View Invoices"
+                              >
+                                <Receipt className="h-4 w-4" />
+                              </Button>
+                            </Link>
                             <Link href={`/vendors/${vendor.id}/edit`}>
                               <Button
                                 variant="ghost"
