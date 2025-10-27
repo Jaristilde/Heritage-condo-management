@@ -3,16 +3,23 @@ import { pgTable, text, varchar, integer, decimal, timestamp, boolean, jsonb } f
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-// Users table with role-based access (Board, Management, Owner)
+// Users table with role-based access (Board, Management, Owner) and enhanced security
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   username: text("username").notNull().unique(),
-  password: text("password").notNull(),
+  password: text("password").notNull(), // BCrypt hashed password
   email: text("email").notNull().unique(),
-  role: text("role").notNull(), // 'board', 'management', 'owner'
+  role: text("role").notNull(), // 'super_admin', 'board_secretary', 'board_treasurer', 'board_member', 'management', 'owner'
   unitId: varchar("unit_id"),
   active: boolean("active").notNull().default(true),
+  mustChangePassword: boolean("must_change_password").notNull().default(true), // Force password change on first login
+  loginAttempts: integer("login_attempts").notNull().default(0), // Track failed login attempts
+  lockedUntil: timestamp("locked_until"), // Account lock timestamp after too many failed attempts
+  lastLoginAt: timestamp("last_login_at"), // Track last successful login
+  lastLoginIp: text("last_login_ip"), // Track last login IP for security
+  passwordChangedAt: timestamp("password_changed_at"), // Track password changes
   createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
 // Units table (24 units total)
@@ -74,17 +81,24 @@ export const payments = pgTable("payments", {
 });
 
 // Assessments table (special assessments tracking)
+// Separates regular monthly maintenance from special assessments (Popular Loan, 2024 Assessment)
 export const assessments = pgTable("assessments", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   assessmentName: text("assessment_name").notNull(),
-  assessmentType: text("assessment_type").notNull(), // 'first', 'second'
+  assessmentType: text("assessment_type").notNull(), // 'REGULAR_MONTHLY', 'SPECIAL_LOAN_POPULAR', 'SPECIAL_2024_ASSESSMENT', 'SPECIAL_ONE_TIME'
+  fundType: text("fund_type").notNull(), // 'OPERATING', 'RESERVE' - Florida FS 718.116 compliance
+  frequency: text("frequency").notNull(), // 'monthly', 'one_time', 'quarterly', 'annual'
   totalAmount: decimal("total_amount", { precision: 10, scale: 2 }).notNull(),
   amountPerUnit: decimal("amount_per_unit", { precision: 10, scale: 2 }).notNull(),
   startDate: timestamp("start_date").notNull(),
   dueDate: timestamp("due_date"),
+  endDate: timestamp("end_date"), // For recurring assessments, when they end
   description: text("description"),
-  status: text("status").notNull().default("active"), // 'active', 'completed'
+  isRecurring: boolean("is_recurring").notNull().default(false), // True for monthly maintenance
+  allocateTo: text("allocate_to"), // 'maintenance', 'reserves', 'special_project'
+  status: text("status").notNull().default("active"), // 'active', 'completed', 'cancelled'
   createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
 // Vendors table (for property management)
@@ -183,16 +197,21 @@ export const notifications = pgTable("notifications", {
 });
 
 // Bank Accounts table (for financial reporting - tracks all bank accounts and reconciliations)
+// FLORIDA LAW COMPLIANCE: FS 718.116 requires separation of Operating and Reserve funds
 export const bankAccounts = pgTable("bank_accounts", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   accountName: text("account_name").notNull(), // 'Popular Bank - Operating (1343)', 'Truist Bank - Reserve (5602)', etc.
-  accountType: text("account_type").notNull(), // 'operating', 'reserve', 'special_assessment', 'debt_service', 'petty_cash'
+  accountType: text("account_type").notNull(), // 'OPERATING', 'RESERVE', 'ESCROW' (only one of each OPERATING and RESERVE allowed)
+  fundType: text("fund_type").notNull(), // 'operating', 'reserve', 'escrow' - for Florida statutory compliance
   bankName: text("bank_name").notNull(), // 'Popular Bank', 'Truist Bank'
   accountNumber: text("account_number"), // Last 4 digits or full account number
+  routingNumber: text("routing_number"), // Bank routing number
   currentBalance: decimal("current_balance", { precision: 10, scale: 2 }).notNull().default("0"),
+  minimumBalance: decimal("minimum_balance", { precision: 10, scale: 2 }).default("0"), // Minimum required balance for reserves
   lastReconciled: timestamp("last_reconciled"),
   reconciledBalance: decimal("reconciled_balance", { precision: 10, scale: 2 }),
   outstandingChecks: jsonb("outstanding_checks"), // Array of {checkNumber, amount, payee, date}
+  isProtected: boolean("is_protected").notNull().default(false), // If true, cannot transfer to operating (Florida law)
   status: text("status").notNull().default("active"), // 'active', 'closed'
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
@@ -329,7 +348,7 @@ export const historicApSnapshots = pgTable("historic_ap_snapshots", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
-// Audit Log
+// Audit Log (for data changes)
 export const auditLog = pgTable("audit_log", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull(),
@@ -338,6 +357,20 @@ export const auditLog = pgTable("audit_log", {
   entityId: varchar("entity_id"),
   details: jsonb("details"), // JSON object with relevant data
   ipAddress: text("ip_address"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Activity Log (for user actions and security events)
+export const activityLog = pgTable("activity_log", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id"), // Nullable for failed login attempts
+  username: text("username"), // Store username even if user doesn't exist
+  activityType: text("activity_type").notNull(), // 'login', 'logout', 'failed_login', 'password_change', 'account_locked', 'account_unlocked'
+  ipAddress: text("ip_address"),
+  userAgent: text("user_agent"), // Browser/device information
+  success: boolean("success").notNull().default(true),
+  failureReason: text("failure_reason"), // Reason for failure if success=false
+  metadata: jsonb("metadata"), // Additional context data
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -365,6 +398,7 @@ export const financialReports = pgTable("financial_reports", {
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   createdAt: true,
+  updatedAt: true,
 });
 
 export const insertUnitSchema = createInsertSchema(units).omit({
@@ -390,6 +424,7 @@ export const insertPaymentSchema = createInsertSchema(payments).omit({
 export const insertAssessmentSchema = createInsertSchema(assessments).omit({
   id: true,
   createdAt: true,
+  updatedAt: true,
 });
 
 export const insertVendorSchema = createInsertSchema(vendors).omit({
@@ -495,6 +530,11 @@ export const insertAuditLogSchema = createInsertSchema(auditLog).omit({
   createdAt: true,
 });
 
+export const insertActivityLogSchema = createInsertSchema(activityLog).omit({
+  id: true,
+  createdAt: true,
+});
+
 // Types
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -570,3 +610,6 @@ export type HistoricApSnapshot = typeof historicApSnapshots.$inferSelect;
 
 export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;
 export type AuditLog = typeof auditLog.$inferSelect;
+
+export type InsertActivityLog = z.infer<typeof insertActivityLogSchema>;
+export type ActivityLog = typeof activityLog.$inferSelect;
