@@ -160,7 +160,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/units", authMiddleware, requireRole('board', 'management'), async (req, res) => {
+  app.post("/api/units", authMiddleware, requireRole('board_secretary', 'board_treasurer', 'board_member', 'management'), async (req, res) => {
     try {
       const data = insertUnitSchema.parse(req.body);
       const unit = await storage.createUnit(data);
@@ -170,7 +170,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/units/:id", authMiddleware, requireRole('board', 'management'), async (req, res) => {
+  app.patch("/api/units/:id", authMiddleware, requireRole('board_secretary', 'board_treasurer', 'board_member', 'management'), async (req, res) => {
     try {
       const unit = await storage.updateUnit(req.params.id, req.body);
       
@@ -195,7 +195,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Payment routes
-  app.get("/api/payments", authMiddleware, requireRole('board', 'management'), async (req, res) => {
+  app.get("/api/payments", authMiddleware, requireRole('board_secretary', 'board_treasurer', 'board_member', 'management'), async (req, res) => {
     try {
       const payments = await storage.getAllPayments();
       res.json(payments);
@@ -283,7 +283,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/assessments", authMiddleware, requireRole('board', 'management'), async (req, res) => {
+  app.post("/api/assessments", authMiddleware, requireRole('board_secretary', 'board_treasurer', 'board_member', 'management'), async (req, res) => {
     try {
       const data = insertAssessmentSchema.parse(req.body);
       const assessment = await storage.createAssessment(data);
@@ -294,7 +294,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Vendor routes
-  app.get("/api/vendors", authMiddleware, requireRole('board', 'management'), async (req, res) => {
+  app.get("/api/vendors", authMiddleware, requireRole('board_secretary', 'board_treasurer', 'board_member', 'management'), async (req, res) => {
     try {
       const vendors = await storage.getAllVendors();
       res.json(vendors);
@@ -303,7 +303,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/vendors", authMiddleware, requireRole('board', 'management'), async (req, res) => {
+  app.post("/api/vendors", authMiddleware, requireRole('board_secretary', 'board_treasurer', 'board_member', 'management'), async (req, res) => {
     try {
       const data = insertVendorSchema.parse(req.body);
       const vendor = await storage.createVendor(data);
@@ -313,7 +313,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/vendors/:id", authMiddleware, requireRole('board', 'management'), async (req, res) => {
+  app.get("/api/vendors/:id", authMiddleware, requireRole('board_secretary', 'board_treasurer', 'board_member', 'management'), async (req, res) => {
     try {
       const vendor = await storage.getVendor(req.params.id);
       if (!vendor) {
@@ -325,7 +325,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/vendors/:id", authMiddleware, requireRole('board', 'management'), async (req, res) => {
+  app.patch("/api/vendors/:id", authMiddleware, requireRole('board_secretary', 'board_treasurer', 'board_member', 'management'), async (req, res) => {
     try {
       const vendor = await storage.updateVendor(req.params.id, req.body);
       if (!vendor) {
@@ -337,7 +337,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/vendors/:id", authMiddleware, requireRole('board'), async (req, res) => {
+  app.delete("/api/vendors/:id", authMiddleware, requireRole('board_secretary', 'board_treasurer', 'board_member'), async (req, res) => {
     try {
       await storage.deleteVendor(req.params.id);
       res.json({ success: true });
@@ -347,7 +347,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Invoice routes
-  app.get("/api/invoices", authMiddleware, requireRole('board', 'management'), async (req, res) => {
+  app.get("/api/invoices", authMiddleware, requireRole('board_secretary', 'board_treasurer', 'board_member', 'management'), async (req, res) => {
     try {
       const { status, vendorId, startDate, endDate } = req.query;
 
@@ -365,7 +365,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/invoices/:id", authMiddleware, requireRole('board', 'management'), async (req, res) => {
+  app.get("/api/invoices/:id", authMiddleware, requireRole('board_secretary', 'board_treasurer', 'board_member', 'management'), async (req, res) => {
     try {
       const invoice = await storage.getInvoice(req.params.id);
       if (!invoice) {
@@ -377,7 +377,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/invoices", authMiddleware, requireRole('board', 'management'), async (req, res) => {
+  app.post("/api/invoices", authMiddleware, requireRole('board_secretary', 'board_treasurer', 'board_member', 'management'), async (req, res) => {
     try {
       const userPayload = (req as any).user;
       const data = insertInvoiceSchema.parse({
@@ -392,7 +392,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/invoices/:id", authMiddleware, requireRole('board', 'management'), async (req, res) => {
+  app.put("/api/invoices/:id", authMiddleware, requireRole('board_secretary', 'board_treasurer', 'board_member', 'management'), async (req, res) => {
     try {
       const invoice = await storage.updateInvoice(req.params.id, req.body);
       if (!invoice) {
@@ -404,7 +404,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/invoices/:id", authMiddleware, requireRole('board'), async (req, res) => {
+  app.delete("/api/invoices/:id", authMiddleware, requireRole('board_secretary', 'board_treasurer', 'board_member'), async (req, res) => {
     try {
       await storage.deleteInvoice(req.params.id);
       res.json({ success: true });
@@ -414,7 +414,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Invoice file upload
-  app.post("/api/invoices/:id/upload", authMiddleware, requireRole('board', 'management'), uploadInvoice.single('file'), async (req, res) => {
+  app.post("/api/invoices/:id/upload", authMiddleware, requireRole('board_secretary', 'board_treasurer', 'board_member', 'management'), uploadInvoice.single('file'), async (req, res) => {
     try {
       if (!req.file) {
         return res.status(400).json({ error: "No file uploaded" });
@@ -438,7 +438,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Approve invoice
-  app.post("/api/invoices/:id/approve", authMiddleware, requireRole('board', 'management'), async (req, res) => {
+  app.post("/api/invoices/:id/approve", authMiddleware, requireRole('board_secretary', 'board_treasurer', 'board_member', 'management'), async (req, res) => {
     try {
       const userPayload = (req as any).user;
       const invoice = await storage.updateInvoice(req.params.id, {
@@ -458,7 +458,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Reject invoice
-  app.post("/api/invoices/:id/reject", authMiddleware, requireRole('board', 'management'), async (req, res) => {
+  app.post("/api/invoices/:id/reject", authMiddleware, requireRole('board_secretary', 'board_treasurer', 'board_member', 'management'), async (req, res) => {
     try {
       const userPayload = (req as any).user;
       const { reason } = req.body;
@@ -485,7 +485,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Bulk approve invoices
-  app.post("/api/invoices/bulk-approve", authMiddleware, requireRole('board', 'management'), async (req, res) => {
+  app.post("/api/invoices/bulk-approve", authMiddleware, requireRole('board_secretary', 'board_treasurer', 'board_member', 'management'), async (req, res) => {
     try {
       const userPayload = (req as any).user;
       const { invoiceIds } = req.body;
@@ -512,7 +512,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Ledger routes
-  app.get("/api/units/:id/ledger", authMiddleware, requireRole('board', 'management'), async (req, res) => {
+  app.get("/api/units/:id/ledger", authMiddleware, requireRole('board_secretary', 'board_treasurer', 'board_member', 'management'), async (req, res) => {
     try {
       const ledgerEntries = await storage.getLedgerEntriesByUnit(req.params.id);
       res.json(ledgerEntries);
@@ -522,7 +522,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Dashboard statistics
-  app.get("/api/dashboard/stats", authMiddleware, requireRole('board', 'management'), async (req, res) => {
+  app.get("/api/dashboard/stats", authMiddleware, requireRole('board_secretary', 'board_treasurer', 'board_member', 'management'), async (req, res) => {
     try {
       const stats = await storage.getDashboardStats();
       res.json(stats);
@@ -532,7 +532,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Board action routes
-  app.get("/api/board-actions", authMiddleware, requireRole('board', 'management'), async (req, res) => {
+  app.get("/api/board-actions", authMiddleware, requireRole('board_secretary', 'board_treasurer', 'board_member', 'management'), async (req, res) => {
     try {
       const actions = await storage.getAllBoardActions();
       res.json(actions);
@@ -562,7 +562,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Financial Report Generation
-  app.post("/api/reports/generate", authMiddleware, requireRole('board', 'management'), async (req, res) => {
+  app.post("/api/reports/generate", authMiddleware, requireRole('board_secretary', 'board_treasurer', 'board_member', 'management'), async (req, res) => {
     try {
       const userPayload = (req as any).user;
       const { month, year } = req.body;
@@ -755,7 +755,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Budget Proposal Generation
-  app.post("/api/budget/propose", authMiddleware, requireRole('board', 'management'), async (req, res) => {
+  app.post("/api/budget/propose", authMiddleware, requireRole('board_secretary', 'board_treasurer', 'board_member', 'management'), async (req, res) => {
     try {
       const userPayload = (req as any).user;
       const { targetYear } = req.body;
@@ -780,7 +780,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ============================================
 
   // Get all delinquent units that need action
-  app.get("/api/delinquency/check", authMiddleware, requireRole('board', 'management'), async (req, res) => {
+  app.get("/api/delinquency/check", authMiddleware, requireRole('board_secretary', 'board_treasurer', 'board_member', 'management'), async (req, res) => {
     try {
       const { getUnitsNeedingAction } = await import("./services/delinquency-checker");
       const checks = await getUnitsNeedingAction();
@@ -798,7 +798,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Manual trigger for delinquency check (for testing)
-  app.post("/api/delinquency/trigger", authMiddleware, requireRole('board'), async (req, res) => {
+  app.post("/api/delinquency/trigger", authMiddleware, requireRole('board_secretary', 'board_treasurer', 'board_member'), async (req, res) => {
     try {
       const { triggerManualDelinquencyCheck } = await import("./services/cron-jobs");
       const result = await triggerManualDelinquencyCheck();
@@ -812,7 +812,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get new delinquencies for board notification
-  app.get("/api/delinquency/new", authMiddleware, requireRole('board', 'management'), async (req, res) => {
+  app.get("/api/delinquency/new", authMiddleware, requireRole('board_secretary', 'board_treasurer', 'board_member', 'management'), async (req, res) => {
     try {
       const { getNewDelinquencies } = await import("./services/delinquency-checker");
       const newDelinquencies = await getNewDelinquencies();
