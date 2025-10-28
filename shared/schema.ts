@@ -3,7 +3,7 @@ import { pgTable, text, varchar, integer, decimal, timestamp, boolean, jsonb } f
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-// Users table with role-based access (Board, Management, Owner) and enhanced security
+// Users table with role-based access (Board, Management, Owner)
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   username: text("username").notNull().unique(),
@@ -12,14 +12,7 @@ export const users = pgTable("users", {
   role: text("role").notNull(), // 'super_admin', 'board_secretary', 'board_treasurer', 'board_member', 'management', 'owner'
   unitId: varchar("unit_id"),
   active: boolean("active").notNull().default(true),
-  mustChangePassword: boolean("must_change_password").notNull().default(true), // Force password change on first login
-  loginAttempts: integer("login_attempts").notNull().default(0), // Track failed login attempts
-  lockedUntil: timestamp("locked_until"), // Account lock timestamp after too many failed attempts
-  lastLoginAt: timestamp("last_login_at"), // Track last successful login
-  lastLoginIp: text("last_login_ip"), // Track last login IP for security
-  passwordChangedAt: timestamp("password_changed_at"), // Track password changes
   createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
 // Units table (24 units total)
