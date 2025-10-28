@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { db } from "../server/db";
 import { assessments, units } from "@shared/schema";
 import { eq } from "drizzle-orm";
