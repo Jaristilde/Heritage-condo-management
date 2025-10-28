@@ -20,11 +20,6 @@ if (process.env.NODE_ENV !== "production") {
 const viteLogger = createLogger();
 
 export function log(message: string, source = "express") {
-  // ... rest of your code
-
-const viteLogger = createLogger();
-
-export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
     hour: "numeric",
     minute: "2-digit",

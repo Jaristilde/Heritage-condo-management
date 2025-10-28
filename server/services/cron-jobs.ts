@@ -104,7 +104,6 @@ export function setupDailyDelinquencyCheck() {
 
   console.log(`\n🤖 Automated delinquency check scheduled`);
   console.log(`   Schedule: ${schedule === "0 6 * * *" ? "Daily at 6:00 AM" : schedule}`);
-  console.log(`   Next run: ${job.nextDate().toString()}\n`);
 
   return job;
 }
@@ -136,7 +135,6 @@ export function setupWeeklyFinancialReport() {
 
   console.log(`📊 Weekly financial report scheduled`);
   console.log(`   Schedule: Every Monday at 8:00 AM`);
-  console.log(`   Next run: ${job.nextDate().toString()}\n`);
 
   return job;
 }
@@ -173,7 +171,6 @@ export function setupMonthlyBoardPackage() {
 
   console.log(`📋 Monthly board package scheduled`);
   console.log(`   Schedule: 1st of each month at 9:00 AM`);
-  console.log(`   Next run: ${job.nextDate().toString()}\n`);
 
   return job;
 }

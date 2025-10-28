@@ -17,7 +17,7 @@ Dear {{ownerName}},
 
 This is a friendly reminder that your Heritage Condominium account for Unit {{unitNumber}} has an outstanding balance.
 
-Current Balance Due: ${{totalOwed}}
+Current Balance Due: \${{totalOwed}}
 Days Past Due: {{daysDelinquent}}
 
 To avoid late fees and further collection action, please submit payment as soon as possible.
@@ -44,7 +44,7 @@ Dear {{ownerName}},
 
 This is your SECOND NOTICE regarding the outstanding balance on Unit {{unitNumber}}.
 
-Current Balance Due: ${{totalOwed}}
+Current Balance Due: \${{totalOwed}}
 Days Past Due: {{daysDelinquent}}
 
 ⚠️ LATE FEES HAVE BEEN APPLIED
@@ -84,7 +84,7 @@ Dear {{ownerName}},
 
 This is your FINAL NOTICE before attorney referral for Unit {{unitNumber}}.
 
-Current Balance Due: ${{totalOwed}}
+Current Balance Due: \${{totalOwed}}
 Days Past Due: {{daysDelinquent}}
 
 🚨 ATTORNEY REFERRAL IN 7 DAYS
@@ -96,16 +96,16 @@ You have 7 days from the date of this notice to pay in full or contact the board
 
 IF NO PAYMENT IS RECEIVED:
 1. Your account will be referred to Daniel C. Lopez, Esq. (Lopez Law Firm)
-2. Attorney fees ($3,000-5,000+) will be added to your account
+2. Attorney fees (\$3,000-5,000+) will be added to your account
 3. A lien will be filed on your property
 4. Court costs and interest will be added
 5. Foreclosure proceedings may begin
 
 TOTAL COST IF ATTORNEY IS INVOLVED:
-• Current balance: ${{totalOwed}}
-• Estimated attorney fees: $3,500
-• Court costs: $1,000-2,000
-• Total you would owe: ${{estimatedTotalWithFees}}
+• Current balance: \${{totalOwed}}
+• Estimated attorney fees: \$3,500
+• Court costs: \$1,000-2,000
+• Total you would owe: \${{estimatedTotalWithFees}}
 
 AVOID THESE COSTS - CONTACT US TODAY:
 • Email: board@heritagecondo.com
@@ -142,7 +142,7 @@ ATTORNEY REFERRALS NEEDED:
 
 SUMMARY:
 • Total delinquent units: {{totalDelinquent}}
-• Total amount owed: ${{totalOwed}}
+• Total amount owed: \${{totalOwed}}
 • Units 30-60 days: {{count30to60}}
 • Units 60-90 days: {{count60to90}}
 • Units 90+ days: {{count90plus}}
@@ -174,16 +174,16 @@ UNIT INFORMATION:
 • Property Address: 13275 Biscayne Blvd, Unit {{unitNumber}}, North Miami, FL 33181
 
 ACCOUNT DETAILS:
-• Total Amount Owed: ${{totalOwed}}
+• Total Amount Owed: \${{totalOwed}}
 • Days Delinquent: {{daysDelinquent}}
 • Last Payment: {{lastPaymentDate}}
 • Notices Sent: 30-day, 60-day, 90-day final
 
 BREAKDOWN:
-• Monthly Maintenance Arrears: ${{maintenanceArrears}}
-• Special Assessment Arrears: ${{specialAssessmentArrears}}
-• Late Fees: ${{lateFees}}
-• Total: ${{totalOwed}}
+• Monthly Maintenance Arrears: \${{maintenanceArrears}}
+• Special Assessment Arrears: \${{specialAssessmentArrears}}
+• Late Fees: \${{lateFees}}
+• Total: \${{totalOwed}}
 
 FLORIDA STATUTE COMPLIANCE:
 • All required notices sent per FS 718.116
