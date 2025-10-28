@@ -5,6 +5,7 @@ import { User } from "lucide-react";
 import { FinancialSummaryWidget } from "@/components/financial/FinancialSummaryWidget";
 import { CriticalCollectionsAlert } from "@/components/financial/CriticalCollectionsAlert";
 import { OverdrawnAccountWarning } from "@/components/financial/OverdrawnAccountWarning";
+import { DelinquencyAlertsWidget } from "@/components/dashboard/DelinquencyAlertsWidget";
 
 interface Unit {
   id: string;
@@ -111,6 +112,9 @@ export default function Dashboard() {
         attorneyCount={attorneyUnits.length}
         totalCritical={criticalCollections}
       />
+
+      {/* Automated Delinquency Management */}
+      <DelinquencyAlertsWidget />
     </div>
   );
 }

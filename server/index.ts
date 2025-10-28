@@ -3,6 +3,7 @@ import express, { type Request, Response, NextFunction } from "express";
 import cors from "cors";
 import { registerRoutes } from "./routes";
 import { serveStatic, log } from "./static";
+import { initializeCronJobs } from "./services/cron-jobs";
 
 const app = express();
 
@@ -102,6 +103,10 @@ app.use((req, res, next) => {
     },
     () => {
       log(`serving on port ${port}`);
+
+      // Initialize automated cron jobs for delinquency checking
+      // This eliminates dependency on external accountants
+      initializeCronJobs();
     },
   );
 })();

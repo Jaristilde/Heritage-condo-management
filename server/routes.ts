@@ -774,6 +774,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ============================================
+  // DELINQUENCY AUTOMATION ENDPOINTS
+  // Eliminates dependency on external accountants
+  // ============================================
+
+  // Get all delinquent units that need action
+  app.get("/api/delinquency/check", authMiddleware, requireRole('board', 'management'), async (req, res) => {
+    try {
+      const { getUnitsNeedingAction } = await import("./services/delinquency-checker");
+      const checks = await getUnitsNeedingAction();
+
+      res.json({
+        success: true,
+        count: checks.length,
+        units: checks,
+      });
+
+    } catch (error) {
+      console.error("Error checking delinquencies:", error);
+      res.status(500).json({ error: "Failed to check delinquencies" });
+    }
+  });
+
+  // Manual trigger for delinquency check (for testing)
+  app.post("/api/delinquency/trigger", authMiddleware, requireRole('board'), async (req, res) => {
+    try {
+      const { triggerManualDelinquencyCheck } = await import("./services/cron-jobs");
+      const result = await triggerManualDelinquencyCheck();
+
+      res.json(result);
+
+    } catch (error) {
+      console.error("Error triggering delinquency check:", error);
+      res.status(500).json({ error: "Failed to trigger delinquency check" });
+    }
+  });
+
+  // Get new delinquencies for board notification
+  app.get("/api/delinquency/new", authMiddleware, requireRole('board', 'management'), async (req, res) => {
+    try {
+      const { getNewDelinquencies } = await import("./services/delinquency-checker");
+      const newDelinquencies = await getNewDelinquencies();
+
+      res.json({
+        success: true,
+        count: newDelinquencies.length,
+        units: newDelinquencies,
+      });
+
+    } catch (error) {
+      console.error("Error getting new delinquencies:", error);
+      res.status(500).json({ error: "Failed to get new delinquencies" });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;
