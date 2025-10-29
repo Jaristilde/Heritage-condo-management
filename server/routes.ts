@@ -567,10 +567,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/invoices", authMiddleware, requireRole('board_secretary', 'board_treasurer', 'board_member', 'management'), async (req, res) => {
     try {
       const userPayload = (req as any).user;
-      const data = insertInvoiceSchema.parse({
+
+      // Convert date strings to Date objects for Zod validation
+      const payload = {
         ...req.body,
         uploadedBy: userPayload.userId,
-      });
+        invoiceDate: req.body.invoiceDate ? new Date(req.body.invoiceDate) : new Date(),
+        dueDate: req.body.dueDate ? new Date(req.body.dueDate) : new Date(),
+      };
+
+      const data = insertInvoiceSchema.parse(payload);
       const invoice = await storage.createInvoice(data);
 
       // Send notifications to board members for invoice approval

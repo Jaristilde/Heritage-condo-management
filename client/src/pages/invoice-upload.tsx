@@ -135,12 +135,17 @@ export default function InvoiceUpload() {
       }
 
       // Create invoice with uploaded file
+      const invoiceDate = data.invoiceDate ? new Date(data.invoiceDate) : new Date();
+      const defaultDueDate = new Date(invoiceDate);
+      defaultDueDate.setDate(defaultDueDate.getDate() + 30); // Default: 30 days from invoice date
+      const dueDate = data.dueDate ? new Date(data.dueDate) : defaultDueDate;
+
       const payload = {
         vendorId: data.vendorId,
         invoiceNumber: data.invoiceNumber || `INV-${Date.now()}`,
-        invoiceDate: data.invoiceDate || new Date().toISOString(),
-        dueDate: data.dueDate || null,
-        amount: data.amount ? parseFloat(data.amount) : 0,
+        invoiceDate: invoiceDate.toISOString(), // Send as ISO string
+        dueDate: dueDate.toISOString(), // Send as ISO string
+        amount: data.amount || "0", // Keep as string
         description: data.description || null,
         notes: data.notes || null,
         fileUrl,
@@ -390,7 +395,7 @@ export default function InvoiceUpload() {
                   {(isUploading || uploadMutation.isPending) && (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   )}
-                  {isUploading ? "Uploading..." : "Upload Invoice"}
+                  {isUploading ? "Uploading..." : "Send for Approval"}
                 </Button>
               </div>
             </form>

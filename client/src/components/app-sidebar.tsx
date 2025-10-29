@@ -7,7 +7,6 @@ import {
   Calculator,
   BarChart3,
   FolderOpen,
-  Upload,
   Settings,
   CreditCard,
   FileText,
@@ -69,7 +68,6 @@ export function AppSidebar({ role }: AppSidebarProps) {
     {
       title: "Admin",
       items: [
-        { title: "Import Data", url: "/import", icon: Upload },
         { title: "Settings", url: "/settings", icon: Settings },
       ],
     },

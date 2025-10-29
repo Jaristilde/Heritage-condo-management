@@ -29,6 +29,7 @@ import InvoiceUpload from "@/pages/invoice-upload";
 import UnitLedger from "@/pages/unit-ledger";
 import Documents from "@/pages/documents";
 import Reports from "@/pages/reports";
+import Budgets from "@/pages/budgets";
 
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
   if (!isAuthenticated()) {
@@ -82,8 +83,7 @@ function AuthenticatedLayout() {
                   <Route path="/invoices/:id" component={() => <ProtectedRoute component={InvoiceForm} />} />
                   <Route path="/invoices" component={() => <ProtectedRoute component={Invoices} />} />
                   <Route path="/documents" component={() => <ProtectedRoute component={Documents} />} />
-                  <Route path="/budgets" component={() => <ProtectedRoute component={NotFound} />} />
-                  <Route path="/import" component={() => <ProtectedRoute component={NotFound} />} />
+                  <Route path="/budgets" component={() => <ProtectedRoute component={Budgets} />} />
                   <Route path="/settings" component={() => <ProtectedRoute component={NotFound} />} />
                 </>
               )}
