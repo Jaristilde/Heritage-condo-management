@@ -35,6 +35,9 @@ interface Unit {
   maintenanceBalance: string;
   firstAssessmentBalance: string;
   secondAssessmentBalance: string;
+  delinquencyStatus: string;
+  priorityLevel: string;
+  notes: string | null;
 }
 
 export default function UnitLedger() {
@@ -82,6 +85,38 @@ export default function UnitLedger() {
     }).format(parseFloat(amount));
   };
 
+  const getPriorityBadge = (priority: string) => {
+    const variants: Record<string, { variant: "default" | "secondary" | "destructive" | "outline"; className?: string }> = {
+      low: { variant: "secondary" },
+      medium: { variant: "default", className: "bg-yellow-500" },
+      high: { variant: "default", className: "bg-orange-500" },
+      critical: { variant: "destructive" },
+      attorney: { variant: "destructive" },
+    };
+
+    return (
+      <Badge {...variants[priority] || { variant: "outline" }}>
+        {priority.charAt(0).toUpperCase() + priority.slice(1)}
+      </Badge>
+    );
+  };
+
+  const getStatusBadge = (status: string) => {
+    const variants: Record<string, { variant: "default" | "secondary" | "destructive" | "outline"; className?: string }> = {
+      current: { variant: "default", className: "bg-green-500" },
+      pending: { variant: "default", className: "bg-yellow-500" },
+      "30-60days": { variant: "default", className: "bg-orange-500" },
+      "90plus": { variant: "destructive" },
+      attorney: { variant: "destructive" },
+    };
+
+    return (
+      <Badge {...variants[status] || { variant: "outline" }}>
+        {status === "30-60days" ? "30-60 Days" : status === "90plus" ? "90+ Days" : status.charAt(0).toUpperCase() + status.slice(1)}
+      </Badge>
+    );
+  };
+
   const getEntryTypeColor = (entryType: string): "default" | "secondary" | "destructive" | "outline" => {
     switch (entryType) {
       case "payment":
@@ -122,8 +157,26 @@ export default function UnitLedger() {
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back
         </Button>
-        <div>
-          <h1 className="text-3xl font-bold">Unit {unit.unitNumber} - Ledger</h1>
+        <div className="flex-1">
+          <div className="flex items-center gap-3">
+            <h1 className="text-3xl font-bold">Unit {unit.unitNumber} - Ledger</h1>
+            {parseFloat(unit.totalOwed) < 0 && (
+              <Badge variant="default" className="bg-blue-500">
+                CREDIT
+              </Badge>
+            )}
+            {unit.notes?.includes("Payment Plan") && (
+              <Badge variant="default" className="bg-purple-500">
+                PAYMENT PLAN
+              </Badge>
+            )}
+            {getStatusBadge(unit.delinquencyStatus)}
+            {unit.priorityLevel === 'attorney' && (
+              <Badge variant="destructive">
+                ATTORNEY COLLECTION
+              </Badge>
+            )}
+          </div>
           <p className="text-muted-foreground mt-1">
             Transaction history and account balance
           </p>
@@ -138,7 +191,12 @@ export default function UnitLedger() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(totalBalance)}</div>
+            <div className={`text-2xl font-bold ${parseFloat(totalBalance) < 0 ? 'text-blue-600' : parseFloat(totalBalance) > 0 ? 'text-red-600' : ''}`}>
+              {formatCurrency(totalBalance)}
+              {parseFloat(totalBalance) < 0 && (
+                <span className="text-sm text-blue-600 ml-2">(CREDIT)</span>
+              )}
+            </div>
           </CardContent>
         </Card>
 
@@ -160,7 +218,9 @@ export default function UnitLedger() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(unit.maintenanceBalance)}</div>
+            <div className={`text-2xl font-bold ${parseFloat(unit.maintenanceBalance) < 0 ? 'text-blue-600' : parseFloat(unit.maintenanceBalance) > 0 ? 'text-red-600' : ''}`}>
+              {formatCurrency(unit.maintenanceBalance)}
+            </div>
           </CardContent>
         </Card>
 
