@@ -17,6 +17,14 @@ interface Unit {
   delinquencyStatus: string;
   priorityLevel: string;
   notes: string | null;
+
+  // 2024 Assessment fields
+  assessment2024Status: string;
+  assessment2024Original: string;
+  assessment2024Paid: string;
+  assessment2024Remaining: string;
+  onAssessmentPlan: boolean;
+  redFlag: boolean;
 }
 
 export default function Units() {
@@ -64,6 +72,24 @@ export default function Units() {
     );
   };
 
+  const get2024AssessmentBadge = (status: string) => {
+    const variants: Record<string, { variant: "default" | "secondary" | "destructive" | "outline"; className?: string; label?: string }> = {
+      "PAID IN FULL": { variant: "default", className: "bg-green-600", label: "✅ PAID" },
+      "3-YEAR PLAN": { variant: "default", className: "bg-blue-600", label: "📋 PLAN" },
+      "PARTIAL": { variant: "default", className: "bg-yellow-600", label: "📊 PARTIAL" },
+      "UNPAID": { variant: "destructive", label: "🚩 UNPAID" },
+      "pending": { variant: "outline", label: "Pending" },
+    };
+
+    const config = variants[status] || { variant: "outline", label: status };
+
+    return (
+      <Badge {...config}>
+        {config.label}
+      </Badge>
+    );
+  };
+
   if (isLoading) {
     return (
       <div className="p-8">
@@ -106,6 +132,7 @@ export default function Units() {
                   <TableHead>Unit</TableHead>
                   <TableHead className="text-right">Monthly Maint.</TableHead>
                   <TableHead className="text-right">Total Owed</TableHead>
+                  <TableHead>2024 Assessment</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Priority</TableHead>
                   <TableHead>Notes</TableHead>
@@ -122,6 +149,9 @@ export default function Units() {
                     </TableCell>
                     <TableCell className="text-right font-mono" data-testid={`text-total-owed-${unit.unitNumber}`}>
                       {formatCurrency(unit.totalOwed)}
+                    </TableCell>
+                    <TableCell>
+                      {get2024AssessmentBadge(unit.assessment2024Status || "pending")}
                     </TableCell>
                     <TableCell>
                       {getStatusBadge(unit.delinquencyStatus)}
@@ -219,38 +249,43 @@ export default function Units() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm">Assessment Status</CardTitle>
+            <CardTitle className="text-sm">2024 Assessment Status</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            <div>
-              <p className="text-sm font-medium mb-2">First Assessment</p>
-              <div className="flex justify-between items-center">
-                <span className="text-sm">Paid</span>
-                <span className="text-sm font-mono">
-                  {units?.filter(u => u.firstAssessmentStatus === "paid").length || 0}
-                </span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm">Paying</span>
-                <span className="text-sm font-mono">
-                  {units?.filter(u => u.firstAssessmentStatus === "paying").length || 0}
-                </span>
-              </div>
+            <div className="flex justify-between items-center">
+              <span className="text-sm flex items-center gap-1">
+                ✅ Paid in Full
+              </span>
+              <Badge className="bg-green-600">
+                {units?.filter(u => u.assessment2024Status === "PAID IN FULL").length || 0}
+              </Badge>
             </div>
-            <div className="pt-2 border-t">
-              <p className="text-sm font-medium mb-2">Second Assessment</p>
-              <div className="flex justify-between items-center">
-                <span className="text-sm">Paid</span>
-                <span className="text-sm font-mono">
-                  {units?.filter(u => u.secondAssessmentStatus === "paid").length || 0}
-                </span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm">Payment Plan</span>
-                <span className="text-sm font-mono">
-                  {units?.filter(u => u.secondAssessmentStatus === "plan").length || 0}
-                </span>
-              </div>
+            <div className="flex justify-between items-center">
+              <span className="text-sm flex items-center gap-1">
+                📋 3-Year Plan
+              </span>
+              <Badge className="bg-blue-600">
+                {units?.filter(u => u.assessment2024Status === "3-YEAR PLAN").length || 0}
+              </Badge>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-sm flex items-center gap-1">
+                📊 Partial Payment
+              </span>
+              <Badge className="bg-yellow-600">
+                {units?.filter(u => u.assessment2024Status === "PARTIAL").length || 0}
+              </Badge>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-sm flex items-center gap-1">
+                🚩 Unpaid
+              </span>
+              <Badge variant="destructive">
+                {units?.filter(u => u.assessment2024Status === "UNPAID").length || 0}
+              </Badge>
+            </div>
+            <div className="pt-2 border-t text-xs text-muted-foreground">
+              Total Assessed: $286,102.08
             </div>
           </CardContent>
         </Card>

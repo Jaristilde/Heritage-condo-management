@@ -20,16 +20,46 @@ export const users = pgTable("users", {
 export const units = pgTable("units", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   unitNumber: text("unit_number").notNull().unique(),
+
+  // ===== MONTHLY CHARGES =====
   monthlyMaintenance: decimal("monthly_maintenance", { precision: 10, scale: 2 }).notNull(),
+  monthlyPopularLoan: decimal("monthly_popular_loan", { precision: 10, scale: 2 }).notNull().default("0"),
+  monthlyAssessmentPlan: decimal("monthly_assessment_plan", { precision: 10, scale: 2 }).notNull().default("0"),
+
+  // ===== CURRENT BALANCES =====
   maintenanceBalance: decimal("maintenance_balance", { precision: 10, scale: 2 }).notNull().default("0"),
+  popularLoanBalance: decimal("popular_loan_balance", { precision: 10, scale: 2 }).notNull().default("0"),
+  creditBalance: decimal("credit_balance", { precision: 10, scale: 2 }).notNull().default("0"), // Negative = owner has credit
+  totalOwed: decimal("total_owed", { precision: 10, scale: 2 }).notNull().default("0"),
+
+  // ===== 2024 SPECIAL ASSESSMENT TRACKING =====
+  assessment2024Original: decimal("assessment_2024_original", { precision: 10, scale: 2 }).notNull().default("11920.92"),
+  assessment2024Paid: decimal("assessment_2024_paid", { precision: 10, scale: 2 }).notNull().default("0"),
+  assessment2024Remaining: decimal("assessment_2024_remaining", { precision: 10, scale: 2 }).notNull().default("0"),
+  assessment2024Status: text("assessment_2024_status").notNull().default("pending"), // 'PAID IN FULL', '3-YEAR PLAN', 'PARTIAL', 'UNPAID'
+
+  // ===== ASSESSMENT PAYMENT PLAN (for 3-year plans) =====
+  onAssessmentPlan: boolean("on_assessment_plan").notNull().default(false),
+  assessmentPlanStartDate: timestamp("assessment_plan_start_date"),
+  assessmentPlanEndDate: timestamp("assessment_plan_end_date"),
+  assessmentPlanMonthly: decimal("assessment_plan_monthly", { precision: 10, scale: 2 }).notNull().default("0"),
+  assessmentPlanMonthsTotal: integer("assessment_plan_months_total").default(0),
+  assessmentPlanMonthsCompleted: integer("assessment_plan_months_completed").default(0),
+
+  // ===== LEGACY FIELDS (keep for backward compatibility) =====
   firstAssessmentStatus: text("first_assessment_status").notNull(), // 'paid', 'paying', 'owed'
   firstAssessmentBalance: decimal("first_assessment_balance", { precision: 10, scale: 2 }).notNull().default("0"),
   secondAssessmentStatus: text("second_assessment_status").notNull(), // 'paid', 'plan', 'owed', 'attorney'
   secondAssessmentBalance: decimal("second_assessment_balance", { precision: 10, scale: 2 }).notNull().default("0"),
-  totalOwed: decimal("total_owed", { precision: 10, scale: 2 }).notNull().default("0"),
+
+  // ===== STATUS & METADATA =====
   delinquencyStatus: text("delinquency_status").notNull(), // 'current', 'pending', '30-60days', '90plus', 'attorney'
   priorityLevel: text("priority_level").notNull(), // 'low', 'medium', 'high', 'critical', 'attorney'
+  redFlag: boolean("red_flag").notNull().default(false), // Quick visual indicator
+  withAttorney: boolean("with_attorney").notNull().default(false),
+  inForeclosure: boolean("in_foreclosure").notNull().default(false),
   notes: text("notes"),
+  legalNotes: text("legal_notes"),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
