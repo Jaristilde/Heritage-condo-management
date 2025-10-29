@@ -25,6 +25,9 @@ interface Unit {
   assessment2024Remaining: string;
   onAssessmentPlan: boolean;
   redFlag: boolean;
+
+  // Popular Loan field
+  monthlyPopularLoan: string;
 }
 
 export default function Units() {
@@ -131,8 +134,9 @@ export default function Units() {
                 <TableRow>
                   <TableHead>Unit</TableHead>
                   <TableHead className="text-right">Monthly Maint.</TableHead>
+                  <TableHead className="text-right">Popular Loan</TableHead>
                   <TableHead className="text-right">Total Owed</TableHead>
-                  <TableHead>2024 Assessment</TableHead>
+                  <TableHead className="text-right">2024 Assessment</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Priority</TableHead>
                   <TableHead>Notes</TableHead>
@@ -147,11 +151,29 @@ export default function Units() {
                     <TableCell className="text-right font-mono" data-testid={`text-monthly-maint-${unit.unitNumber}`}>
                       {formatCurrency(unit.monthlyMaintenance)}
                     </TableCell>
+                    <TableCell className="text-right font-mono">
+                      {parseFloat(unit.monthlyPopularLoan || "0") > 0
+                        ? formatCurrency(unit.monthlyPopularLoan)
+                        : "-"
+                      }
+                    </TableCell>
                     <TableCell className="text-right font-mono" data-testid={`text-total-owed-${unit.unitNumber}`}>
                       {formatCurrency(unit.totalOwed)}
                     </TableCell>
-                    <TableCell>
-                      {get2024AssessmentBadge(unit.assessment2024Status || "pending")}
+                    <TableCell className="text-right">
+                      {parseFloat(unit.assessment2024Remaining || "0") > 0 ? (
+                        <span className="font-mono text-orange-600">
+                          {formatCurrency(unit.assessment2024Remaining)}
+                        </span>
+                      ) : unit.assessment2024Status === "PAID IN FULL" ? (
+                        <span className="text-green-600 font-semibold">✅ PAID</span>
+                      ) : unit.assessment2024Status === "3-YEAR PLAN" ? (
+                        <span className="font-mono text-blue-600">
+                          {formatCurrency(unit.assessment2024Remaining)}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
                     </TableCell>
                     <TableCell>
                       {getStatusBadge(unit.delinquencyStatus)}
