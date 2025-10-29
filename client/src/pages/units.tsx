@@ -28,6 +28,10 @@ interface Unit {
 
   // Popular Loan field
   monthlyPopularLoan: string;
+
+  // Payment plan fields
+  assessmentPlanMonthsCompleted?: number;
+  assessmentPlanMonthsTotal?: number;
 }
 
 export default function Units() {
@@ -135,8 +139,8 @@ export default function Units() {
                   <TableHead>Unit</TableHead>
                   <TableHead className="text-right">Monthly Maint.</TableHead>
                   <TableHead className="text-right">Popular Loan</TableHead>
-                  <TableHead className="text-right">Total Owed</TableHead>
                   <TableHead className="text-right">2024 Assessment</TableHead>
+                  <TableHead className="text-right">Total Owed</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Priority</TableHead>
                   <TableHead>Notes</TableHead>
@@ -157,23 +161,49 @@ export default function Units() {
                         : "-"
                       }
                     </TableCell>
+                    <TableCell className="text-right">
+                      {/* 2024 Assessment Logic - FIXED */}
+                      {(() => {
+                        // If paid in full
+                        if (unit.assessment2024Status === "PAID IN FULL") {
+                          return <span className="text-green-600 font-semibold">✅ PAID</span>;
+                        }
+
+                        // If never made ANY payment (red flags)
+                        const paidAmount = parseFloat(unit.assessment2024Paid || "0");
+                        if (paidAmount === 0) {
+                          return (
+                            <span className="text-red-600 font-semibold">
+                              $11,920.92 🚩
+                            </span>
+                          );
+                        }
+
+                        // If on payment plan or making partial payments
+                        const remaining = parseFloat(unit.assessment2024Remaining || "0");
+                        if (remaining > 0) {
+                          // On 3-year plan (Units 202, 203)
+                          if (unit.onAssessmentPlan) {
+                            return (
+                              <span className="text-blue-600 font-mono">
+                                {formatCurrency(unit.assessment2024Remaining)} (Plan)
+                              </span>
+                            );
+                          }
+
+                          // Partial payment (other units)
+                          return (
+                            <span className="font-mono">
+                              {formatCurrency(unit.assessment2024Remaining)}
+                            </span>
+                          );
+                        }
+
+                        return <span className="text-muted-foreground">-</span>;
+                      })()}
+                    </TableCell>
                     <TableCell className="text-right font-mono" data-testid={`text-total-owed-${unit.unitNumber}`}>
                       {formatCurrency(unit.totalOwed)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {parseFloat(unit.assessment2024Remaining || "0") > 0 ? (
-                        <span className="font-mono text-orange-600">
-                          {formatCurrency(unit.assessment2024Remaining)}
-                        </span>
-                      ) : unit.assessment2024Status === "PAID IN FULL" ? (
-                        <span className="text-green-600 font-semibold">✅ PAID</span>
-                      ) : unit.assessment2024Status === "3-YEAR PLAN" ? (
-                        <span className="font-mono text-blue-600">
-                          {formatCurrency(unit.assessment2024Remaining)}
-                        </span>
-                      ) : (
-                        <span className="text-muted-foreground">-</span>
-                      )}
                     </TableCell>
                     <TableCell>
                       {getStatusBadge(unit.delinquencyStatus)}
