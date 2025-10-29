@@ -6,6 +6,7 @@ export interface User {
   email: string;
   role: string;
   unitId?: string | null;
+  mustChangePassword?: boolean;
 }
 
 export interface AuthResponse {

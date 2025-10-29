@@ -12,6 +12,7 @@ import {
   CreditCard,
   FileText,
   DollarSign,
+  User,
 } from "lucide-react";
 import {
   Sidebar,
@@ -81,6 +82,7 @@ export function AppSidebar({ role }: AppSidebarProps) {
         { title: "My Account", url: "/", icon: Home },
         { title: "Make Payment", url: "/payment", icon: CreditCard },
         { title: "Payment History", url: "/history", icon: FileText },
+        { title: "My Profile", url: "/profile", icon: User },
       ],
     },
   ];

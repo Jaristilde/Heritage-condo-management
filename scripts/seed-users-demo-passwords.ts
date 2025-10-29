@@ -7,9 +7,9 @@ import * as bcrypt from "bcryptjs";
  * Seed demo users with simple passwords for development/testing
  *
  * DEMO ACCOUNTS:
- * - Board: board / board123
- * - Management: management / management123
- * - Owner: owner201 / owner123
+ * - Board: board / board1806
+ * - Management: management / management1806
+ * - Owner: owner201 / owner1806
  *
  * NO PASSWORD CHANGE REQUIRED - Direct login to dashboard
  */
@@ -22,9 +22,9 @@ async function seedDemoUsers() {
 
   try {
     // Hash passwords (still using bcrypt for basic security)
-    const boardPassword = await bcrypt.hash("board123", 10);
-    const managementPassword = await bcrypt.hash("management123", 10);
-    const ownerPassword = await bcrypt.hash("owner123", 10);
+    const boardPassword = await bcrypt.hash("board1806", 10);
+    const managementPassword = await bcrypt.hash("management1806", 10);
+    const ownerPassword = await bcrypt.hash("owner1806", 10);
 
     const demoUsers = [
       {
@@ -72,16 +72,16 @@ async function seedDemoUsers() {
     console.log("");
     console.log("Board Secretary (Full Access):");
     console.log("  Username: board");
-    console.log("  Password: board123");
+    console.log("  Password: board1806");
     console.log("  Unit:     202");
     console.log("");
     console.log("Management (Operations):");
     console.log("  Username: management");
-    console.log("  Password: management123");
+    console.log("  Password: management1806");
     console.log("");
     console.log("Owner (Unit 201):");
     console.log("  Username: owner201");
-    console.log("  Password: owner123");
+    console.log("  Password: owner1806");
     console.log("  Unit:     201");
     console.log("");
     console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");

@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { getUser } from "@/lib/auth";
 import {
   Table,
   TableBody,
@@ -30,7 +31,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, Search, Pencil, Trash2, FileText, ExternalLink } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, FileText, ExternalLink, CheckCircle } from "lucide-react";
 import { format } from "date-fns";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -97,6 +98,32 @@ export default function Invoices() {
     },
   });
 
+  const approveMutation = useMutation({
+    mutationFn: async (invoiceId: string) => {
+      return apiRequest("POST", `/api/invoices/${invoiceId}/approve`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/invoices"] });
+      toast({
+        title: "Success",
+        description: "Invoice approved successfully",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to approve invoice",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Check if current user is a board member (can approve invoices)
+  const currentUser = getUser();
+  const isBoardMember = currentUser?.role === 'board_secretary' ||
+                        currentUser?.role === 'board_treasurer' ||
+                        currentUser?.role === 'board_member';
+
   if (invoicesLoading) {
     return (
       <div className="p-8">
@@ -150,13 +177,13 @@ export default function Invoices() {
         <div>
           <h1 className="text-3xl font-bold">Invoice Management</h1>
           <p className="text-muted-foreground mt-1">
-            Track and manage vendor invoices
+            Upload and manage vendor invoices for board approval
           </p>
         </div>
-        <Link href="/invoices/new">
+        <Link href="/invoices/upload">
           <Button>
             <Plus className="mr-2 h-4 w-4" />
-            New Invoice
+            Upload Invoice
           </Button>
         </Link>
       </div>
@@ -193,12 +220,12 @@ export default function Invoices() {
               <p className="text-muted-foreground mb-4">
                 {searchTerm || statusFilter !== "all"
                   ? "Try adjusting your search or filters"
-                  : "Get started by creating your first invoice"}
+                  : "Get started by uploading your first invoice"}
               </p>
-              <Link href="/invoices/new">
+              <Link href="/invoices/upload">
                 <Button>
                   <Plus className="mr-2 h-4 w-4" />
-                  Create Invoice
+                  Upload Invoice
                 </Button>
               </Link>
             </div>
@@ -256,6 +283,17 @@ export default function Invoices() {
                               onClick={() => window.open(invoice.fileUrl!, '_blank')}
                             >
                               <ExternalLink className="h-4 w-4" />
+                            </Button>
+                          )}
+                          {isBoardMember && invoice.status === 'pending' && (
+                            <Button
+                              variant="default"
+                              size="sm"
+                              onClick={() => approveMutation.mutate(invoice.id)}
+                              disabled={approveMutation.isPending}
+                            >
+                              <CheckCircle className="h-4 w-4 mr-1" />
+                              Approve
                             </Button>
                           )}
                           <Link href={`/invoices/${invoice.id}`}>

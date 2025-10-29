@@ -18,7 +18,7 @@ async function seedBankAccounts() {
       fundType: "operating",
       bankName: "Popular Bank",
       accountNumber: "****1343", // Last 4 digits only
-      routingNumber: "021502011", // Example routing number
+      routingNumber: "021502011", // Popular Bank routing number
       currentBalance: "0.00",
       minimumBalance: "0.00",
       isProtected: false, // Operating account is not protected
@@ -30,7 +30,7 @@ async function seedBankAccounts() {
       fundType: "reserve",
       bankName: "Truist Bank",
       accountNumber: "****5602", // Last 4 digits only
-      routingNumber: "061000104", // Example routing number
+      routingNumber: "061000104", // Truist Bank routing number
       currentBalance: "0.00",
       minimumBalance: "50000.00", // Example minimum reserve requirement
       isProtected: true, // Reserve funds CANNOT be transferred to operating per Florida law

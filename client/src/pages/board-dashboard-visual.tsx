@@ -165,7 +165,7 @@ export default function BoardDashboardVisual() {
       <div>
         <h1 className="text-3xl font-bold mb-2">Board Dashboard</h1>
         <p className="text-muted-foreground mb-6">
-          Financial snapshot for June 2025
+          Financial snapshot as of July 2025
         </p>
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">

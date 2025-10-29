@@ -27,19 +27,20 @@ const invoiceStorage = multer.diskStorage({
   }
 });
 
-// File filter - only allow PDFs
-const pdfFilter = (req: any, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
-  if (file.mimetype === 'application/pdf') {
+// File filter - allow PDFs and images for invoices
+const invoiceFilter = (req: any, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
+  const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
+  if (allowedTypes.includes(file.mimetype)) {
     cb(null, true);
   } else {
-    cb(new Error('Only PDF files are allowed'));
+    cb(new Error('Only PDF and image files (JPG, PNG) are allowed'));
   }
 };
 
 // Invoice upload middleware
 export const uploadInvoice = multer({
   storage: invoiceStorage,
-  fileFilter: pdfFilter,
+  fileFilter: invoiceFilter,
   limits: {
     fileSize: 10 * 1024 * 1024, // 10MB max
   }
@@ -60,6 +61,6 @@ const documentStorage = multer.diskStorage({
 export const uploadDocument = multer({
   storage: documentStorage,
   limits: {
-    fileSize: 20 * 1024 * 1024, // 20MB max
+    fileSize: 50 * 1024 * 1024, // 50MB max for documents
   }
 });

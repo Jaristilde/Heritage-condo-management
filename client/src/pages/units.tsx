@@ -83,7 +83,7 @@ export default function Units() {
             Units & Owners
           </h1>
           <p className="text-muted-foreground">
-            Complete listing of all 24 Heritage condominium units
+            Complete listing of all 24 Heritage condominium units • Financial data as of July 2025
           </p>
         </div>
         <div className="flex items-center gap-2">

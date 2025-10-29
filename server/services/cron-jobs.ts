@@ -9,6 +9,15 @@ import {
   sendBoardAlert,
   sendAttorneyReferral
 } from "./delinquency-notifier";
+import {
+  getBudgetVariance,
+  checkOverBudgetAlerts
+} from "./budget-variance";
+import {
+  sendCriticalBudgetAlert,
+  sendWarningBudgetAlert,
+  sendMonthlyBudgetSummary
+} from "./budget-alert-notifier";
 
 /**
  * Automated Cron Jobs for Heritage Condo
@@ -176,6 +185,105 @@ export function setupMonthlyBoardPackage() {
 }
 
 /**
+ * Monthly budget variance check and alerts
+ * Runs on the 5th of each month at 7:00 AM
+ */
+export function setupMonthlyBudgetVarianceCheck() {
+  // Run on 5th of each month at 7:00 AM
+  const job = cron.schedule("0 7 5 * *", async () => {
+    console.log("\n");
+    console.log("═══════════════════════════════════════════════════════════════");
+    console.log("📊 MONTHLY BUDGET VARIANCE CHECK");
+    console.log("═══════════════════════════════════════════════════════════════");
+    console.log(`Time: ${new Date().toLocaleString()}`);
+    console.log("");
+
+    try {
+      const now = new Date();
+      // Check previous month's budget
+      const year = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
+      const month = now.getMonth() === 0 ? 12 : now.getMonth();
+
+      console.log(`Analyzing budget variance for ${getMonthName(month)} ${year}...`);
+
+      // STEP 1: Get variance report
+      console.log("\nSTEP 1: Generating variance report...");
+      const variance = await getBudgetVariance(year, month);
+      console.log(`   Total Budgeted: $${variance.totalBudgeted.toFixed(2)}`);
+      console.log(`   Total Actual: $${variance.totalActual.toFixed(2)}`);
+      console.log(`   Variance: ${variance.totalVariancePercent.toFixed(1)}%`);
+
+      // STEP 2: Check for alerts
+      console.log("\nSTEP 2: Checking for over-budget categories...");
+      const alerts = await checkOverBudgetAlerts(year, month);
+      console.log(`   Critical categories: ${alerts.criticalCount}`);
+      console.log(`   Warning categories: ${alerts.warningCount}`);
+
+      // STEP 3: Send appropriate alerts
+      let alertsSent = 0;
+      if (alerts.criticalCount > 0) {
+        console.log("\nSTEP 3: Sending critical budget alerts...");
+        const criticalCategories = alerts.categories.filter(c => c.severity === "critical");
+        await sendCriticalBudgetAlert(variance, criticalCategories);
+        alertsSent++;
+        console.log(`   ✅ Critical alert sent to board`);
+      } else if (alerts.warningCount > 0) {
+        console.log("\nSTEP 3: Sending warning budget alerts...");
+        const warningCategories = alerts.categories.filter(c => c.severity === "warning");
+        await sendWarningBudgetAlert(variance, warningCategories);
+        alertsSent++;
+        console.log(`   ✅ Warning alert sent to board`);
+      } else {
+        console.log("\nSTEP 3: No critical alerts needed");
+      }
+
+      // STEP 4: Always send monthly summary
+      console.log("\nSTEP 4: Sending monthly budget summary...");
+      await sendMonthlyBudgetSummary(variance);
+      console.log(`   ✅ Monthly summary sent to board`);
+
+      // STEP 5: Summary
+      console.log("\n" + "─".repeat(65));
+      console.log("📊 MONTHLY BUDGET VARIANCE CHECK SUMMARY");
+      console.log("─".repeat(65));
+      console.log(`Month analyzed:             ${getMonthName(month)} ${year}`);
+      console.log(`Total variance:             ${variance.totalVariancePercent.toFixed(1)}%`);
+      console.log(`Over-budget categories:     ${variance.overBudgetCount}`);
+      console.log(`Critical alerts:            ${alerts.criticalCount}`);
+      console.log(`Warning alerts:             ${alerts.warningCount}`);
+      console.log(`Board notifications sent:   ${alertsSent + 1}`);
+      console.log("─".repeat(65));
+      console.log("✅ Monthly budget variance check completed");
+      console.log("═══════════════════════════════════════════════════════════════");
+      console.log("\n");
+
+    } catch (error) {
+      console.error("\n❌ ERROR in monthly budget variance check:", error);
+      console.error("═══════════════════════════════════════════════════════════════\n");
+
+      // TODO: Send error alert to board
+      // await sendBoardErrorAlert(error);
+    }
+  });
+
+  console.log(`📊 Monthly budget variance check scheduled`);
+  console.log(`   Schedule: 5th of each month at 7:00 AM`);
+
+  return job;
+}
+
+/**
+ * Helper function to get month name
+ */
+function getMonthName(month: number): string {
+  const months = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+  ];
+  return months[month - 1] || "Unknown";
+}
+
+/**
  * Initialize all cron jobs
  * Call this when the server starts
  */
@@ -192,6 +300,7 @@ export function initializeCronJobs() {
     dailyDelinquency: setupDailyDelinquencyCheck(),
     weeklyReport: setupWeeklyFinancialReport(),
     monthlyPackage: setupMonthlyBoardPackage(),
+    monthlyBudgetVariance: setupMonthlyBudgetVarianceCheck(),
   };
 
   console.log("✅ All automation jobs initialized");

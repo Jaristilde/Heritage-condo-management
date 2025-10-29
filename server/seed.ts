@@ -6,9 +6,9 @@ async function seed() {
 
   // Create default users
   console.log("Creating users...");
-  
-  const boardPassword = await hashPassword("board123");
-  const managementPassword = await hashPassword("management123");
+
+  const boardPassword = await hashPassword("board1806");
+  const managementPassword = await hashPassword("management1806");
   
   await storage.createUser({
     username: "board",
@@ -192,7 +192,7 @@ async function seed() {
     });
 
     // Create owner user account for each unit (for login)
-    const ownerPassword = await hashPassword("password123");
+    const ownerPassword = await hashPassword("password1806");
     await storage.createUser({
       username: `owner${unitData.unitNumber}`,
       password: ownerPassword,
@@ -326,9 +326,9 @@ async function seed() {
 
   console.log("✅ Database seeded successfully!");
   console.log("\nDefault login credentials:");
-  console.log("Board: username: board, password: board123");
-  console.log("Management: username: management, password: management123");
-  console.log("Owners: username: owner101, owner201, owner202... owner408, password: password123");
+  console.log("Board: username: board, password: board1806");
+  console.log("Management: username: management, password: management1806");
+  console.log("Owners: username: owner101, owner201, owner202... owner408, password: password1806");
 }
 
 seed().catch((error) => {

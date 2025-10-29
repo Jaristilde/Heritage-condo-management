@@ -24,12 +24,16 @@ export async function apiRequest(
   url: string,
   data?: unknown | undefined,
 ): Promise<Response> {
+  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5001";
   const headers = {
     ...getAuthHeaders(),
     ...(data ? { "Content-Type": "application/json" } : {}),
   };
 
-  const res = await fetch(url, {
+  // Construct full URL if url is relative
+  const fullUrl = url.startsWith('http') ? url : `${API_URL}${url.startsWith("/") ? "" : "/"}${url}`;
+
+  const res = await fetch(fullUrl, {
     method,
     headers,
     body: data ? JSON.stringify(data) : undefined,

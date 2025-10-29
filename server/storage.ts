@@ -21,6 +21,7 @@ export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
+  getUserByUnitId(unitId: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: string, user: Partial<InsertUser>): Promise<User | undefined>;
   
@@ -120,6 +121,11 @@ export class DbStorage implements IStorage {
     return result[0];
   }
 
+  async getUserByUnitId(unitId: string): Promise<User | undefined> {
+    const result = await db.select().from(schema.users).where(eq(schema.users.unitId, unitId));
+    return result[0];
+  }
+
   async createUser(user: InsertUser): Promise<User> {
     const result = await db.insert(schema.users).values(user).returning();
     return result[0];
@@ -135,7 +141,35 @@ export class DbStorage implements IStorage {
 
   // Unit operations
   async getAllUnits(): Promise<Unit[]> {
-    return db.select().from(schema.units).orderBy(schema.units.unitNumber);
+    const units = await db.select().from(schema.units).orderBy(schema.units.unitNumber);
+
+    // Join with owner data
+    const unitsWithOwners = await Promise.all(
+      units.map(async (unit) => {
+        const owners = await db
+          .select()
+          .from(schema.owners)
+          .where(and(
+            eq(schema.owners.unitId, unit.id),
+            eq(schema.owners.isPrimary, true)
+          ))
+          .limit(1);
+
+        const primaryOwner = owners[0];
+
+        return {
+          ...unit,
+          ownerName: primaryOwner?.fullName,
+          ownerEmail: primaryOwner?.email,
+          ownerPhone: primaryOwner?.phone,
+          mailingAddress: primaryOwner?.mailingAddress,
+          lastPaymentDate: undefined, // Will be populated by separate query if needed
+          lastPaymentAmount: undefined,
+        };
+      })
+    );
+
+    return unitsWithOwners as any;
   }
 
   async getUnit(id: string): Promise<Unit | undefined> {

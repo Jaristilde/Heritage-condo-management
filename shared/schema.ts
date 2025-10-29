@@ -12,6 +12,7 @@ export const users = pgTable("users", {
   role: text("role").notNull(), // 'super_admin', 'board_secretary', 'board_treasurer', 'board_member', 'management', 'owner'
   unitId: varchar("unit_id"),
   active: boolean("active").notNull().default(true),
+  mustChangePassword: boolean("must_change_password").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

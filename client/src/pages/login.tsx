@@ -34,7 +34,26 @@ export default function Login() {
   async function onSubmit(data: LoginForm) {
     setIsLoading(true);
     try {
-      await login(data.username, data.password);
+      const user = await login(data.username, data.password);
+
+      // TODO: PRODUCTION - Re-enable forced password change before going live!
+      // DEMO MODE: Password change requirement is currently DISABLED for easier testing
+      // BEFORE PRODUCTION:
+      // 1. Uncomment the code below
+      // 2. Run the password update script with mustChangePassword: true
+      // 3. Use strong environment-based passwords
+      // 4. Test with real users
+
+      // Check if user needs to change password (DISABLED FOR DEMO)
+      // if (user.mustChangePassword) {
+      //   toast({
+      //     title: "Password Change Required",
+      //     description: "You must change your temporary password before continuing.",
+      //   });
+      //   setLocation("/change-password-required");
+      //   return;
+      // }
+
       toast({
         title: "Welcome back!",
         description: "You have successfully logged in.",
@@ -113,11 +132,35 @@ export default function Login() {
               </Button>
             </form>
           </Form>
-          <div className="mt-4 text-sm text-center text-muted-foreground">
+
+          {/* Owner Registration Link */}
+          <div className="mt-6 text-center">
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-200"></div>
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="bg-white px-2 text-gray-500">New Owner?</span>
+              </div>
+            </div>
+
+            <Button
+              variant="outline"
+              className="w-full mt-4"
+              onClick={() => setLocation("/register")}
+            >
+              Create Your Owner Account
+            </Button>
+            <p className="text-xs text-gray-500 mt-2">
+              First-time owners can register using their unit number
+            </p>
+          </div>
+
+          <div className="mt-6 text-sm text-center text-muted-foreground">
             <p>Demo accounts:</p>
-            <p>Board: <span className="font-mono">board / board123</span></p>
-            <p>Management: <span className="font-mono">management / management123</span></p>
-            <p>Owner: <span className="font-mono">owner201 / owner123</span></p>
+            <p>Board: <span className="font-mono">board / board1806</span></p>
+            <p>Management: <span className="font-mono">management / management1806</span></p>
+            <p>Owner: <span className="font-mono">owner201 / owner1806</span></p>
           </div>
         </CardContent>
       </Card>

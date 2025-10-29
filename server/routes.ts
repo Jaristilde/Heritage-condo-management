@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { hashPassword, verifyPassword, generateToken, authMiddleware, requireRole } from "./auth";
-import { uploadInvoice } from "./middleware/upload";
+import { uploadInvoice, uploadDocument } from "./middleware/upload";
 import { z } from "zod";
 import {
   insertUserSchema,
@@ -17,6 +17,13 @@ import Stripe from 'stripe';
 import { generateMonthlyFinancialReport, type MonthlyReportData } from "./lib/pdfGenerator";
 import { generateFinancialCommentary, type FinancialData } from "./lib/aiCommentary";
 import { analyzeBudgetProposal } from "./lib/budgetAgent";
+import {
+  exportInvoicesToIIF,
+  exportInvoicesToCSV,
+  exportPaymentsToIIF,
+  exportPaymentsToCSV,
+  exportChartOfAccountsToIIF
+} from "./lib/quickbooksExport";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2025-09-30.clover',
@@ -67,6 +74,70 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Owner registration endpoint
+  app.post("/api/auth/register/owner", async (req, res) => {
+    try {
+      const { unitNumber, ownerName, email, phone, username, password } = req.body;
+
+      // Validate required fields
+      if (!unitNumber || !ownerName || !email || !phone || !username || !password) {
+        return res.status(400).json({ error: "All fields are required" });
+      }
+
+      // Check if username already exists
+      const existingUser = await storage.getUserByUsername(username);
+      if (existingUser) {
+        return res.status(400).json({ error: "Username already exists" });
+      }
+
+      // Check if email already exists
+      const existingEmail = await storage.getUserByEmail(email);
+      if (existingEmail) {
+        return res.status(400).json({ error: "Email already registered" });
+      }
+
+      // Find the unit by unit number
+      const units = await storage.getUnits();
+      const unit = units.find((u: any) => u.unitNumber === unitNumber);
+
+      if (!unit) {
+        return res.status(400).json({ error: "Invalid unit number" });
+      }
+
+      // Check if unit already has an owner account registered
+      const existingOwner = await storage.getUserByUnitId(unit.id);
+      if (existingOwner) {
+        return res.status(400).json({ error: "This unit already has a registered owner" });
+      }
+
+      // Hash password and create user
+      const hashedPassword = await hashPassword(password);
+      const user = await storage.createUser({
+        username,
+        password: hashedPassword,
+        email,
+        role: "owner",
+        unitId: unit.id,
+      });
+
+      // Update unit with owner information
+      await storage.updateUnit(unit.id, {
+        ownerName,
+        ownerEmail: email,
+        ownerPhone: phone,
+      });
+
+      // Don't auto-login, just return success
+      res.json({
+        success: true,
+        message: "Registration successful. Please login with your credentials.",
+      });
+    } catch (error: any) {
+      console.error("Owner registration error:", error);
+      res.status(500).json({ error: error.message || "Registration failed" });
+    }
+  });
+
   app.post("/api/auth/login", async (req, res) => {
     try {
       const { username, password } = req.body;
@@ -95,6 +166,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           email: user.email,
           role: user.role,
           unitId: user.unitId,
+          mustChangePassword: user.mustChangePassword || false,
         },
         token,
       });
@@ -103,11 +175,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/auth/change-password-required", authMiddleware, async (req, res) => {
+    try {
+      const userPayload = (req as any).user;
+      const { currentPassword, newPassword, confirmPassword } = req.body;
+
+      // Get current user
+      const user = await storage.getUser(userPayload.userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      // Check if user actually needs to change password
+      if (!user.mustChangePassword) {
+        return res.status(400).json({ error: "Password change not required" });
+      }
+
+      // Verify current password
+      const isValid = await verifyPassword(currentPassword, user.password);
+      if (!isValid) {
+        return res.status(401).json({ error: "Current password is incorrect" });
+      }
+
+      // Validate new passwords match
+      if (newPassword !== confirmPassword) {
+        return res.status(400).json({ error: "New passwords do not match" });
+      }
+
+      // Validate new password strength
+      if (newPassword.length < 8) {
+        return res.status(400).json({ error: "Password must be at least 8 characters" });
+      }
+      if (!/[a-z]/.test(newPassword)) {
+        return res.status(400).json({ error: "Password must contain at least one lowercase letter" });
+      }
+      if (!/[A-Z]/.test(newPassword)) {
+        return res.status(400).json({ error: "Password must contain at least one uppercase letter" });
+      }
+      if (!/[0-9]/.test(newPassword)) {
+        return res.status(400).json({ error: "Password must contain at least one number" });
+      }
+
+      // Hash and update new password, clear mustChangePassword flag
+      const hashedPassword = await hashPassword(newPassword);
+      await storage.updateUser(userPayload.userId, {
+        password: hashedPassword,
+        mustChangePassword: false,
+      });
+
+      res.json({ success: true, message: "Password changed successfully" });
+    } catch (error: any) {
+      console.error("Required password change error:", error);
+      res.status(500).json({ error: error.message || "Failed to change password" });
+    }
+  });
+
   app.get("/api/auth/me", authMiddleware, async (req, res) => {
     try {
       const userPayload = (req as any).user;
       const user = await storage.getUser(userPayload.userId);
-      
+
       if (!user) {
         return res.status(404).json({ error: "User not found" });
       }
@@ -121,6 +248,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Profile management routes
+  app.put("/api/profile", authMiddleware, async (req, res) => {
+    try {
+      const userPayload = (req as any).user;
+      const { ownerName, email, phone } = req.body;
+
+      // Update user email
+      if (email) {
+        await storage.updateUser(userPayload.userId, { email });
+      }
+
+      // Update unit owner information if user is an owner
+      if (userPayload.role === "owner" && userPayload.unitId) {
+        await storage.updateUnit(userPayload.unitId, {
+          ownerName,
+          ownerEmail: email,
+          ownerPhone: phone,
+        });
+      }
+
+      res.json({ success: true, message: "Profile updated successfully" });
+    } catch (error: any) {
+      console.error("Profile update error:", error);
+      res.status(500).json({ error: error.message || "Failed to update profile" });
+    }
+  });
+
+  app.put("/api/profile/password", authMiddleware, async (req, res) => {
+    try {
+      const userPayload = (req as any).user;
+      const { currentPassword, newPassword } = req.body;
+
+      // Get current user
+      const user = await storage.getUser(userPayload.userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      // Verify current password
+      const isValid = await verifyPassword(currentPassword, user.password);
+      if (!isValid) {
+        return res.status(401).json({ error: "Current password is incorrect" });
+      }
+
+      // Validate new password
+      if (newPassword.length < 8) {
+        return res.status(400).json({ error: "Password must be at least 8 characters" });
+      }
+
+      // Hash and update new password
+      const hashedPassword = await hashPassword(newPassword);
+      await storage.updateUser(userPayload.userId, { password: hashedPassword });
+
+      res.json({ success: true, message: "Password updated successfully" });
+    } catch (error: any) {
+      console.error("Password change error:", error);
+      res.status(500).json({ error: error.message || "Failed to change password" });
     }
   });
 
@@ -385,6 +572,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
         uploadedBy: userPayload.userId,
       });
       const invoice = await storage.createInvoice(data);
+
+      // Send notifications to board members for invoice approval
+      if (invoice.status === 'pending') {
+        try {
+          const allUsers = await storage.getAllUsers();
+          const boardMembers = allUsers.filter((u: any) =>
+            u.role === 'board_secretary' ||
+            u.role === 'board_treasurer' ||
+            u.role === 'board_member'
+          );
+
+          // Get vendor name for notification
+          const vendor = await storage.getVendor(invoice.vendorId);
+          const vendorName = vendor?.vendorName || 'Unknown Vendor';
+
+          // Create notifications for each board member
+          for (const boardMember of boardMembers) {
+            await storage.createNotification({
+              userId: boardMember.id,
+              notificationType: 'board_action',
+              title: 'New Invoice Awaiting Approval',
+              message: `A new invoice from ${vendorName} for $${invoice.amount} has been uploaded and requires your approval.`,
+              isRead: false,
+            });
+          }
+
+          console.log(`✅ Notified ${boardMembers.length} board members about new invoice`);
+        } catch (notificationError) {
+          console.error('Failed to send notifications:', notificationError);
+          // Don't fail the request if notifications fail
+        }
+      }
+
       res.json(invoice);
     } catch (error) {
       console.error('Create invoice error:', error);
@@ -413,7 +633,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Invoice file upload
+  // Invoice file upload (for new invoices - before creation)
+  app.post("/api/invoices/upload-file", authMiddleware, requireRole('board_secretary', 'board_treasurer', 'board_member', 'management'), uploadInvoice.single('file'), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "No file uploaded" });
+      }
+
+      const fileUrl = `/uploads/invoices/${req.file.filename}`;
+      res.json({ fileUrl, fileName: req.file.originalname });
+    } catch (error) {
+      console.error('Upload error:', error);
+      res.status(500).json({ error: "Upload failed" });
+    }
+  });
+
+  // Invoice file upload (for existing invoices)
   app.post("/api/invoices/:id/upload", authMiddleware, requireRole('board_secretary', 'board_treasurer', 'board_member', 'management'), uploadInvoice.single('file'), async (req, res) => {
     try {
       if (!req.file) {
@@ -438,7 +673,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Approve invoice
-  app.post("/api/invoices/:id/approve", authMiddleware, requireRole('board_secretary', 'board_treasurer', 'board_member', 'management'), async (req, res) => {
+  // Approve invoice - BOARD MEMBERS ONLY (not management)
+  app.post("/api/invoices/:id/approve", authMiddleware, requireRole('board_secretary', 'board_treasurer', 'board_member'), async (req, res) => {
     try {
       const userPayload = (req as any).user;
       const invoice = await storage.updateInvoice(req.params.id, {
@@ -457,8 +693,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Reject invoice
-  app.post("/api/invoices/:id/reject", authMiddleware, requireRole('board_secretary', 'board_treasurer', 'board_member', 'management'), async (req, res) => {
+  // Reject invoice - BOARD MEMBERS ONLY (not management)
+  app.post("/api/invoices/:id/reject", authMiddleware, requireRole('board_secretary', 'board_treasurer', 'board_member'), async (req, res) => {
     try {
       const userPayload = (req as any).user;
       const { reason } = req.body;
@@ -484,8 +720,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Bulk approve invoices
-  app.post("/api/invoices/bulk-approve", authMiddleware, requireRole('board_secretary', 'board_treasurer', 'board_member', 'management'), async (req, res) => {
+  // Bulk approve invoices - BOARD MEMBERS ONLY (not management)
+  app.post("/api/invoices/bulk-approve", authMiddleware, requireRole('board_secretary', 'board_treasurer', 'board_member'), async (req, res) => {
     try {
       const userPayload = (req as any).user;
       const { invoiceIds } = req.body;
@@ -558,6 +794,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Document Management Routes
+  app.get("/api/documents", authMiddleware, async (req, res) => {
+    try {
+      const { relatedTo, relatedId } = req.query;
+      const documents = await storage.getDocuments(
+        relatedTo as string | undefined,
+        relatedId as string | undefined
+      );
+      res.json(documents);
+    } catch (error) {
+      console.error("Error fetching documents:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.post("/api/documents/upload", authMiddleware, requireRole('board_secretary', 'board_treasurer', 'board_member', 'management'), uploadDocument.single('file'), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "No file uploaded" });
+      }
+
+      const userPayload = (req as any).user;
+      const { fileType, relatedTo, relatedId } = req.body;
+
+      if (!fileType) {
+        return res.status(400).json({ error: "Document type is required" });
+      }
+
+      const fileUrl = `/uploads/documents/${req.file.filename}`;
+
+      const document = await storage.createDocument({
+        fileName: req.file.originalname,
+        fileUrl,
+        fileType,
+        uploadedBy: userPayload.userId,
+        relatedTo: relatedTo || null,
+        relatedId: relatedId || null,
+      });
+
+      console.log(`✅ Document uploaded: ${req.file.originalname} (${fileType})`);
+      res.json(document);
+    } catch (error) {
+      console.error('Document upload error:', error);
+      res.status(500).json({ error: "Upload failed" });
     }
   });
 
@@ -771,6 +1054,245 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error generating budget proposal:", error);
       res.status(500).json({ error: "Failed to generate budget proposal" });
+    }
+  });
+
+  // ============================================
+  // QUICKBOOKS EXPORT ENDPOINTS
+  // Export financial data to QuickBooks Desktop (IIF) or Online (CSV)
+  // ============================================
+
+  // Export invoices to IIF format (QuickBooks Desktop)
+  app.get("/api/quickbooks/export/invoices/iif", authMiddleware, requireRole('board_secretary', 'board_treasurer', 'board_member', 'management'), async (req, res) => {
+    try {
+      const { startDate, endDate, status } = req.query;
+
+      // Build query filters
+      const filters: any = {};
+      if (status) filters.status = status as string;
+      if (startDate) filters.startDate = startDate as string;
+      if (endDate) filters.endDate = endDate as string;
+
+      // Get invoices from database
+      let query = db.select().from(invoices);
+
+      if (startDate || endDate || status) {
+        const conditions = [];
+        if (status) conditions.push(eq(invoices.status, status as string));
+        if (startDate) conditions.push(gte(invoices.invoiceDate, startDate as string));
+        if (endDate) conditions.push(lte(invoices.invoiceDate, endDate as string));
+        query = query.where(and(...conditions));
+      }
+
+      const invoiceList = await query;
+
+      // Convert to export format
+      const iifContent = exportInvoicesToIIF(invoiceList);
+
+      res.setHeader('Content-Type', 'application/x-intuit-interchange');
+      res.setHeader('Content-Disposition', 'attachment; filename="invoices.iif"');
+      res.send(iifContent);
+    } catch (error) {
+      console.error("Error exporting invoices to IIF:", error);
+      res.status(500).json({ error: "Failed to export invoices to IIF format" });
+    }
+  });
+
+  // Export invoices to CSV format (QuickBooks Online)
+  app.get("/api/quickbooks/export/invoices/csv", authMiddleware, requireRole('board_secretary', 'board_treasurer', 'board_member', 'management'), async (req, res) => {
+    try {
+      const { startDate, endDate, status } = req.query;
+
+      // Build query filters
+      let query = db.select().from(invoices);
+
+      if (startDate || endDate || status) {
+        const conditions = [];
+        if (status) conditions.push(eq(invoices.status, status as string));
+        if (startDate) conditions.push(gte(invoices.invoiceDate, startDate as string));
+        if (endDate) conditions.push(lte(invoices.invoiceDate, endDate as string));
+        query = query.where(and(...conditions));
+      }
+
+      const invoiceList = await query;
+
+      // Convert to CSV format
+      const csvContent = exportInvoicesToCSV(invoiceList);
+
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', 'attachment; filename="invoices.csv"');
+      res.send(csvContent);
+    } catch (error) {
+      console.error("Error exporting invoices to CSV:", error);
+      res.status(500).json({ error: "Failed to export invoices to CSV format" });
+    }
+  });
+
+  // Export payments to IIF format (QuickBooks Desktop)
+  app.get("/api/quickbooks/export/payments/iif", authMiddleware, requireRole('board_secretary', 'board_treasurer', 'board_member', 'management'), async (req, res) => {
+    try {
+      const { startDate, endDate, paymentType } = req.query;
+
+      // Build query filters
+      let query = db.select().from(payments);
+
+      if (startDate || endDate || paymentType) {
+        const conditions = [];
+        if (paymentType) conditions.push(eq(payments.paymentType, paymentType as string));
+        if (startDate) conditions.push(gte(payments.paidAt, startDate as string));
+        if (endDate) conditions.push(lte(payments.paidAt, endDate as string));
+        query = query.where(and(...conditions));
+      }
+
+      const paymentList = await query;
+
+      // Convert to IIF format
+      const iifContent = exportPaymentsToIIF(paymentList);
+
+      res.setHeader('Content-Type', 'application/x-intuit-interchange');
+      res.setHeader('Content-Disposition', 'attachment; filename="payments.iif"');
+      res.send(iifContent);
+    } catch (error) {
+      console.error("Error exporting payments to IIF:", error);
+      res.status(500).json({ error: "Failed to export payments to IIF format" });
+    }
+  });
+
+  // Export payments to CSV format (QuickBooks Online)
+  app.get("/api/quickbooks/export/payments/csv", authMiddleware, requireRole('board_secretary', 'board_treasurer', 'board_member', 'management'), async (req, res) => {
+    try {
+      const { startDate, endDate, paymentType } = req.query;
+
+      // Build query filters
+      let query = db.select().from(payments);
+
+      if (startDate || endDate || paymentType) {
+        const conditions = [];
+        if (paymentType) conditions.push(eq(payments.paymentType, paymentType as string));
+        if (startDate) conditions.push(gte(payments.paidAt, startDate as string));
+        if (endDate) conditions.push(lte(payments.paidAt, endDate as string));
+        query = query.where(and(...conditions));
+      }
+
+      const paymentList = await query;
+
+      // Convert to CSV format
+      const csvContent = exportPaymentsToCSV(paymentList);
+
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', 'attachment; filename="payments.csv"');
+      res.send(csvContent);
+    } catch (error) {
+      console.error("Error exporting payments to CSV:", error);
+      res.status(500).json({ error: "Failed to export payments to CSV format" });
+    }
+  });
+
+  // Export chart of accounts to IIF format (QuickBooks Desktop initial setup)
+  app.get("/api/quickbooks/export/chart-of-accounts", authMiddleware, requireRole('board_secretary', 'board_treasurer', 'board_member'), async (req, res) => {
+    try {
+      // Generate standard HOA chart of accounts
+      const iifContent = exportChartOfAccountsToIIF();
+
+      res.setHeader('Content-Type', 'application/x-intuit-interchange');
+      res.setHeader('Content-Disposition', 'attachment; filename="chart-of-accounts.iif"');
+      res.send(iifContent);
+    } catch (error) {
+      console.error("Error exporting chart of accounts:", error);
+      res.status(500).json({ error: "Failed to export chart of accounts" });
+    }
+  });
+
+  // ============================================
+  // BUDGET VARIANCE TRACKING ENDPOINTS
+  // Automated budget vs actual analysis and alerts
+  // ============================================
+
+  // Get budget variance for a specific month
+  app.get("/api/budget/variance/:year/:month", authMiddleware, requireRole('board_secretary', 'board_treasurer', 'board_member', 'management'), async (req, res) => {
+    try {
+      const { getBudgetVariance } = await import("./services/budget-variance");
+      const year = parseInt(req.params.year);
+      const month = parseInt(req.params.month);
+
+      if (isNaN(year) || isNaN(month) || month < 1 || month > 12) {
+        return res.status(400).json({ error: "Invalid year or month" });
+      }
+
+      const report = await getBudgetVariance(year, month);
+      res.json(report);
+    } catch (error) {
+      console.error("Error getting budget variance:", error);
+      const errorMessage = error instanceof Error ? error.message : "Failed to get budget variance";
+      res.status(500).json({ error: errorMessage });
+    }
+  });
+
+  // Get year-to-date budget variance
+  app.get("/api/budget/variance/:year/ytd", authMiddleware, requireRole('board_secretary', 'board_treasurer', 'board_member', 'management'), async (req, res) => {
+    try {
+      const { getYTDBudgetVariance } = await import("./services/budget-variance");
+      const year = parseInt(req.params.year);
+
+      if (isNaN(year)) {
+        return res.status(400).json({ error: "Invalid year" });
+      }
+
+      const report = await getYTDBudgetVariance(year);
+      res.json(report);
+    } catch (error) {
+      console.error("Error getting YTD budget variance:", error);
+      res.status(500).json({ error: "Failed to get YTD budget variance" });
+    }
+  });
+
+  // Check for over-budget alerts
+  app.get("/api/budget/alerts/:year/:month", authMiddleware, requireRole('board_secretary', 'board_treasurer', 'board_member', 'management'), async (req, res) => {
+    try {
+      const { checkOverBudgetAlerts } = await import("./services/budget-variance");
+      const year = parseInt(req.params.year);
+      const month = parseInt(req.params.month);
+
+      if (isNaN(year) || isNaN(month) || month < 1 || month > 12) {
+        return res.status(400).json({ error: "Invalid year or month" });
+      }
+
+      const alerts = await checkOverBudgetAlerts(year, month);
+      res.json(alerts);
+    } catch (error) {
+      console.error("Error checking budget alerts:", error);
+      res.status(500).json({ error: "Failed to check budget alerts" });
+    }
+  });
+
+  // Get current month budget health (quick status)
+  app.get("/api/budget/health", authMiddleware, requireRole('board_secretary', 'board_treasurer', 'board_member', 'management'), async (req, res) => {
+    try {
+      const { getBudgetVariance, checkOverBudgetAlerts } = await import("./services/budget-variance");
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = now.getMonth() + 1;
+
+      const [variance, alerts] = await Promise.all([
+        getBudgetVariance(year, month),
+        checkOverBudgetAlerts(year, month)
+      ]);
+
+      res.json({
+        month,
+        year,
+        summary: variance.summary,
+        totalVariancePercent: variance.totalVariancePercent,
+        overBudgetCount: variance.overBudgetCount,
+        hasAlerts: alerts.hasAlerts,
+        criticalCount: alerts.criticalCount,
+        warningCount: alerts.warningCount,
+        status: alerts.criticalCount > 0 ? "critical" :
+                alerts.warningCount > 0 ? "warning" : "ok",
+      });
+    } catch (error) {
+      console.error("Error getting budget health:", error);
+      res.status(500).json({ error: "Failed to get budget health" });
     }
   });
 
