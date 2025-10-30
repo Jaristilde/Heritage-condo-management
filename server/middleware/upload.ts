@@ -6,7 +6,8 @@ import fs from 'fs';
 const uploadDirs = [
   './uploads/invoices',
   './uploads/documents',
-  './uploads/temp'
+  './uploads/temp',
+  './uploads/imports'
 ];
 
 uploadDirs.forEach(dir => {
@@ -62,5 +63,36 @@ export const uploadDocument = multer({
   storage: documentStorage,
   limits: {
     fileSize: 50 * 1024 * 1024, // 50MB max for documents
+  }
+});
+
+// CSV import upload middleware
+const csvStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, './uploads/imports');
+  },
+  filename: (req, file, cb) => {
+    const timestamp = Date.now();
+    const sanitizedName = file.originalname.replace(/[^a-zA-Z0-9.]/g, '_');
+    cb(null, `import_${timestamp}_${sanitizedName}`);
+  }
+});
+
+const csvFilter = (req: any, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
+  const allowedTypes = ['text/csv', 'application/vnd.ms-excel'];
+  const isCSV = file.mimetype.includes('csv') || file.originalname.endsWith('.csv');
+
+  if (allowedTypes.includes(file.mimetype) || isCSV) {
+    cb(null, true);
+  } else {
+    cb(new Error('Only CSV files are allowed'));
+  }
+};
+
+export const uploadCSV = multer({
+  storage: csvStorage,
+  fileFilter: csvFilter,
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB max for CSV
   }
 });

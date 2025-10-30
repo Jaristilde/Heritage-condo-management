@@ -93,7 +93,19 @@ export interface IStorage {
   getNotificationsByUser(userId: string): Promise<Notification[]>;
   createNotification(notification: InsertNotification): Promise<Notification>;
   markNotificationRead(id: string): Promise<void>;
-  
+
+  // Report Import operations
+  createReportImport(report: any): Promise<any>;
+  getReportImportsByVendor(vendor: string): Promise<any[]>;
+  getLatestReportImport(vendor: string): Promise<any | undefined>;
+
+  // Popular Loan operations
+  createPopularLoan(loan: any): Promise<any>;
+  upsertPopularLoan(loan: any): Promise<any>;
+  getPopularLoansByUnit(unit: string): Promise<any[]>;
+  getLatestPopularLoanByUnit(unit: string): Promise<any | undefined>;
+  getAllPopularLoans(): Promise<any[]>;
+
   // Dashboard statistics
   getDashboardStats(): Promise<{
     totalOutstanding: number;
@@ -143,7 +155,7 @@ export class DbStorage implements IStorage {
   async getAllUnits(): Promise<Unit[]> {
     const units = await db.select().from(schema.units).orderBy(schema.units.unitNumber);
 
-    // Join with owner data
+    // Join with owner data and popular loan data
     const unitsWithOwners = await Promise.all(
       units.map(async (unit) => {
         const owners = await db
@@ -157,6 +169,9 @@ export class DbStorage implements IStorage {
 
         const primaryOwner = owners[0];
 
+        // Get latest popular loan for this unit
+        const popularLoan = await this.getLatestPopularLoanByUnit(unit.unitNumber);
+
         return {
           ...unit,
           ownerName: primaryOwner?.fullName,
@@ -165,6 +180,11 @@ export class DbStorage implements IStorage {
           mailingAddress: primaryOwner?.mailingAddress,
           lastPaymentDate: undefined, // Will be populated by separate query if needed
           lastPaymentAmount: undefined,
+          // Popular Loan fields
+          popularLoanNumber: popularLoan?.loanNumber,
+          popularLoanStatus: popularLoan?.status,
+          popularLoanBalance: popularLoan?.currentBalance,
+          popularLoanLastPayment: popularLoan?.lastPaymentDate,
         };
       })
     );
@@ -485,6 +505,76 @@ export class DbStorage implements IStorage {
       monthlyRevenue,
       collectionRate
     };
+  }
+
+  // Report Import operations
+  async createReportImport(report: any): Promise<any> {
+    const result = await db.insert(schema.reportImports).values(report).returning();
+    return result[0];
+  }
+
+  async getReportImportsByVendor(vendor: string): Promise<any[]> {
+    return db.select()
+      .from(schema.reportImports)
+      .where(eq(schema.reportImports.vendor, vendor))
+      .orderBy(desc(schema.reportImports.importedAt));
+  }
+
+  async getLatestReportImport(vendor: string): Promise<any | undefined> {
+    const result = await db.select()
+      .from(schema.reportImports)
+      .where(eq(schema.reportImports.vendor, vendor))
+      .orderBy(desc(schema.reportImports.importedAt))
+      .limit(1);
+    return result[0];
+  }
+
+  // Popular Loan operations
+  async createPopularLoan(loan: any): Promise<any> {
+    const result = await db.insert(schema.popularLoans).values(loan).returning();
+    return result[0];
+  }
+
+  async upsertPopularLoan(loan: any): Promise<any> {
+    // First try to find existing loan for this unit
+    const existing = await this.getLatestPopularLoanByUnit(loan.unit);
+
+    if (existing) {
+      // Update existing
+      const result = await db.update(schema.popularLoans)
+        .set({ ...loan, updatedAt: new Date() })
+        .where(eq(schema.popularLoans.id, existing.id))
+        .returning();
+      return result[0];
+    } else {
+      // Create new
+      return this.createPopularLoan(loan);
+    }
+  }
+
+  async getPopularLoansByUnit(unit: string): Promise<any[]> {
+    return db.select()
+      .from(schema.popularLoans)
+      .where(eq(schema.popularLoans.unit, unit))
+      .orderBy(desc(schema.popularLoans.createdAt));
+  }
+
+  async getLatestPopularLoanByUnit(unit: string): Promise<any | undefined> {
+    const result = await db.select()
+      .from(schema.popularLoans)
+      .where(eq(schema.popularLoans.unit, unit))
+      .orderBy(desc(schema.popularLoans.createdAt))
+      .limit(1);
+    return result[0];
+  }
+
+  async getAllPopularLoans(): Promise<any[]> {
+    // Get latest loan for each unit
+    const units = await this.getAllUnits();
+    const loans = await Promise.all(
+      units.map(unit => this.getLatestPopularLoanByUnit(unit.unitNumber))
+    );
+    return loans.filter(loan => loan !== undefined);
   }
 }
 

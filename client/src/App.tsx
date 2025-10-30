@@ -20,7 +20,9 @@ import Owners from "@/pages/owners";
 import OwnerDetail from "@/pages/owner-detail";
 import Payment from "@/pages/payment";
 import PaymentsList from "@/pages/payments-list";
-import Assessments from "@/pages/assessments";
+import AssessmentsLanding from "@/pages/assessments-landing";
+import SA1Assessment from "@/pages/sa1-assessment";
+import SA2Assessment from "@/pages/sa2-assessment";
 import Vendors from "@/pages/vendors";
 import VendorForm from "@/pages/vendor-form";
 import Invoices from "@/pages/invoices";
@@ -30,6 +32,7 @@ import UnitLedger from "@/pages/unit-ledger";
 import Documents from "@/pages/documents";
 import Reports from "@/pages/reports";
 import Budgets from "@/pages/budgets";
+import ImportFinancialData from "@/pages/import-financial-data";
 
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
   if (!isAuthenticated()) {
@@ -75,7 +78,9 @@ function AuthenticatedLayout() {
                   <Route path="/owners" component={() => <ProtectedRoute component={Owners} />} />
                   <Route path="/payments" component={() => <ProtectedRoute component={PaymentsList} />} />
                   <Route path="/reports" component={() => <ProtectedRoute component={Reports} />} />
-                  <Route path="/assessments" component={() => <ProtectedRoute component={Assessments} />} />
+                  <Route path="/assessments" component={() => <ProtectedRoute component={AssessmentsLanding} />} />
+                  <Route path="/assessments/sa1" component={() => <ProtectedRoute component={SA1Assessment} />} />
+                  <Route path="/assessments/sa2" component={() => <ProtectedRoute component={SA2Assessment} />} />
                   <Route path="/vendors/new" component={() => <ProtectedRoute component={VendorForm} />} />
                   <Route path="/vendors/:id/edit" component={() => <ProtectedRoute component={VendorForm} />} />
                   <Route path="/vendors" component={() => <ProtectedRoute component={Vendors} />} />
@@ -84,6 +89,7 @@ function AuthenticatedLayout() {
                   <Route path="/invoices" component={() => <ProtectedRoute component={Invoices} />} />
                   <Route path="/documents" component={() => <ProtectedRoute component={Documents} />} />
                   <Route path="/budgets" component={() => <ProtectedRoute component={Budgets} />} />
+                  <Route path="/import-financial-data" component={() => <ProtectedRoute component={ImportFinancialData} />} />
                   <Route path="/settings" component={() => <ProtectedRoute component={NotFound} />} />
                 </>
               )}

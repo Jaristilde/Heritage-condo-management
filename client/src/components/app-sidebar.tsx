@@ -12,6 +12,7 @@ import {
   FileText,
   DollarSign,
   User,
+  Upload,
 } from "lucide-react";
 import {
   Sidebar,
@@ -52,6 +53,8 @@ export function AppSidebar({ role }: AppSidebarProps) {
         { title: "Invoices", url: "/invoices", icon: Receipt },
         { title: "Budgets", url: "/budgets", icon: Calculator },
         { title: "Reports", url: "/reports", icon: BarChart3 },
+        { title: "Assessments", url: "/assessments", icon: DollarSign },
+        { title: "Import Financial Data", url: "/import-financial-data", icon: Upload },
         { title: "Units & Ledgers", url: "/units", icon: Building2 },
       ],
     },
@@ -60,7 +63,6 @@ export function AppSidebar({ role }: AppSidebarProps) {
       items: [
         { title: "Owners", url: "/owners", icon: Users },
         { title: "Vendors", url: "/vendors", icon: Briefcase },
-        { title: "Assessments", url: "/assessments", icon: DollarSign },
         { title: "Payments", url: "/payments", icon: CreditCard },
         { title: "Documents", url: "/documents", icon: FolderOpen },
       ],

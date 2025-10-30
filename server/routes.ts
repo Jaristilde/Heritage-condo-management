@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { hashPassword, verifyPassword, generateToken, authMiddleware, requireRole } from "./auth";
-import { uploadInvoice, uploadDocument } from "./middleware/upload";
+import { uploadInvoice, uploadDocument, uploadCSV } from "./middleware/upload";
 import { z } from "zod";
 import {
   insertUserSchema,
@@ -548,6 +548,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json(invoices);
     } catch (error) {
+      console.error("Error fetching invoices:", error);
       res.status(500).json({ error: "Server error" });
     }
   });
@@ -575,6 +576,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         invoiceDate: req.body.invoiceDate ? new Date(req.body.invoiceDate) : new Date(),
         dueDate: req.body.dueDate ? new Date(req.body.dueDate) : new Date(),
       };
+
+      console.log("📋 Invoice creation payload:", JSON.stringify(payload, null, 2));
 
       const data = insertInvoiceSchema.parse(payload);
       const invoice = await storage.createInvoice(data);
@@ -612,9 +615,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       res.json(invoice);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Create invoice error:', error);
-      res.status(400).json({ error: "Invalid request" });
+
+      // Send detailed error for Zod validation errors
+      if (error.name === 'ZodError') {
+        const errorMessages = error.errors.map((e: any) => `${e.path.join('.')}: ${e.message}`).join(', ');
+        return res.status(400).json({ error: `Validation error: ${errorMessages}` });
+      }
+
+      res.status(400).json({ error: error.message || "Invalid request" });
     }
   });
 
@@ -1580,6 +1590,119 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error getting new delinquencies:", error);
       res.status(500).json({ error: "Failed to get new delinquencies" });
+    }
+  });
+
+  // Financial Data Import Routes
+  app.post("/api/import/execute", authMiddleware, requireRole('board_secretary', 'board_treasurer', 'board_member', 'management'), uploadCSV.single('file'), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "No file uploaded" });
+      }
+
+      const userPayload = (req as any).user;
+      const fs = await import('fs');
+      const path = await import('path');
+
+      // Read CSV file
+      const csvContent = fs.default.readFileSync(req.file.path, 'utf-8');
+      const lines = csvContent.trim().split('\n');
+
+      if (lines.length < 2) {
+        return res.status(400).json({ error: "CSV file is empty or invalid" });
+      }
+
+      // Parse CSV
+      const headers = lines[0].split(',').map((h: string) => h.trim());
+      const rows = lines.slice(1).map((line: string) => {
+        const values = line.split(',').map((v: string) => v.trim());
+        const row: any = {};
+        headers.forEach((header: string, i: number) => {
+          row[header] = values[i];
+        });
+        return row;
+      });
+
+      // Create report import record
+      const { units, reportImports, popularLoans } = await import("@shared/schema");
+      const { db } = await import("./db");
+      const { eq } = await import("drizzle-orm");
+
+      const reportImport = await db.insert(reportImports).values({
+        vendor: "Juda Eskew",
+        periodMonth: new Date().getMonth() + 1,
+        periodYear: new Date().getFullYear(),
+        filename: req.file.originalname,
+        importedBy: userPayload.userId,
+        notes: "Web upload",
+      }).returning();
+
+      let updatedCount = 0;
+      let loanCount = 0;
+
+      // Process each row
+      for (const row of rows) {
+        const unitNumber = row['Unit'];
+        const popularLoanAmount = parseFloat(row['Popular Loan'] || '0');
+        const assessment2024 = parseFloat(row['2024 Assessment'] || '0');
+        const totalOwed = parseFloat(row['Total Owed'] || '0');
+        const maintenanceFee = parseFloat(row['Monthly Maintenance'] || '0');
+
+        // Determine assessment status
+        let assessmentStatus = "PARTIAL";
+        if (assessment2024 === 0) {
+          assessmentStatus = "PAID IN FULL";
+        } else if (assessment2024 >= 11920.92) {
+          assessmentStatus = "UNPAID";
+        } else if (row['Status']?.includes('3-Year Plan') || row['Status']?.includes('Plan')) {
+          assessmentStatus = "3-YEAR PLAN";
+        }
+
+        // Update unit
+        await db.update(units)
+          .set({
+            monthlyMaintenance: maintenanceFee.toFixed(2),
+            monthlyPopularLoan: popularLoanAmount.toFixed(2),
+            assessment2024Remaining: assessment2024.toFixed(2),
+            assessment2024Status: assessmentStatus,
+            totalOwed: totalOwed.toFixed(2),
+            updatedAt: new Date(),
+          })
+          .where(eq(units.unitNumber, unitNumber));
+
+        updatedCount++;
+
+        // Create/update popular loan record if amount > 0
+        if (popularLoanAmount > 0) {
+          const loanStatus = assessment2024 === 0 ? "PAID" : "OWES";
+
+          await db.insert(popularLoans).values({
+            unit: unitNumber,
+            loanNumber: null,
+            lender: "Popular Bank",
+            status: loanStatus,
+            currentBalance: popularLoanAmount.toFixed(2),
+            lastPaymentDate: null,
+            sourceReportId: reportImport[0].id,
+          });
+
+          loanCount++;
+        }
+      }
+
+      // Clean up uploaded file
+      fs.default.unlinkSync(req.file.path);
+
+      res.json({
+        success: true,
+        unitsUpdated: updatedCount,
+        loansCreated: loanCount,
+        message: `Successfully imported data for ${updatedCount} units`,
+      });
+
+    } catch (error: any) {
+      console.error("Import error:", error);
+      res.status(500).json({ error: error.message || "Import failed" });
     }
   });
 

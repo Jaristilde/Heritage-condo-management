@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -145,15 +145,20 @@ export default function InvoiceUpload() {
         invoiceNumber: data.invoiceNumber || `INV-${Date.now()}`,
         invoiceDate: invoiceDate.toISOString(), // Send as ISO string
         dueDate: dueDate.toISOString(), // Send as ISO string
-        amount: data.amount || "0", // Keep as string
+        amount: data.amount || "0", // Send as string (decimal field)
+        glCode: null,
         description: data.description || null,
         notes: data.notes || null,
         fileUrl,
         fileName: uploadedFile?.name || null,
         status: 'pending', // Always pending for board approval
+        paymentDate: null,
+        paymentMethod: null,
+        checkNumber: null,
       };
 
-      return apiRequest("POST", "/api/invoices", payload);
+      const response = await apiRequest("POST", "/api/invoices", payload);
+      return response;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/invoices"] });
@@ -164,9 +169,10 @@ export default function InvoiceUpload() {
       setLocation("/invoices");
     },
     onError: (error: any) => {
+      console.error("Upload error:", error);
       toast({
-        title: "Error",
-        description: error.message || "Failed to upload invoice",
+        title: "Upload Failed",
+        description: error.message || "Failed to upload invoice. Please try again.",
         variant: "destructive",
       });
       setIsUploading(false);
@@ -176,6 +182,24 @@ export default function InvoiceUpload() {
   const onSubmit = (data: InvoiceUploadData) => {
     uploadMutation.mutate(data);
   };
+
+  // Warn user before leaving if they have unsaved changes
+  useEffect(() => {
+    const hasUnsavedChanges = uploadedFile !== null;
+
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasUnsavedChanges) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [uploadedFile]);
 
   return (
     <div className="p-8 space-y-6">

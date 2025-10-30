@@ -2,99 +2,270 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Building2 } from "lucide-react";
+import { Building2, AlertCircle } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
 
 interface Unit {
   id: string;
   unitNumber: string;
-  monthlyMaintenance: string;
-  maintenanceBalance: string;
-  firstAssessmentStatus: string;
-  firstAssessmentBalance: string;
-  secondAssessmentStatus: string;
-  secondAssessmentBalance: string;
   totalOwed: string;
-  delinquencyStatus: string;
-  priorityLevel: string;
   notes: string | null;
 
-  // 2024 Assessment fields
-  assessment2024Status: string;
-  assessment2024Original: string;
-  assessment2024Paid: string;
-  assessment2024Remaining: string;
-  onAssessmentPlan: boolean;
+  // 💳 Maintenance Fund
+  maintenancePriorBalance: string;
+  maintenancePaymentJuly: string;
+  maintenanceBalance: string;
+  maintenancePaid: boolean;
+
+  // 💳 SA#1 Fund
+  hasPopularLoan: boolean;
+  sa1PriorBalance: string;
+  sa1PaymentJuly: string;
+  sa1Balance: string;
+  sa1Paid: boolean;
+
+  // 💳 SA#2 Fund
+  sa2RemainingBalance: string;
+  sa2PaymentJuly: string;
+  sa2OnPaymentPlan: boolean;
+
+  // Status flags
   redFlag: boolean;
-
-  // Popular Loan field
-  monthlyPopularLoan: string;
-
-  // Payment plan fields
-  assessmentPlanMonthsCompleted?: number;
-  assessmentPlanMonthsTotal?: number;
+  delinquent: boolean;
 }
 
 export default function Units() {
   const { data: units, isLoading } = useQuery<Unit[]>({
     queryKey: ["/api/units"],
+    staleTime: 0,
   });
 
-  const formatCurrency = (amount: string) => {
-    const num = parseFloat(amount);
+  const formatCurrency = (amount: string | number) => {
+    const num = typeof amount === 'string' ? parseFloat(amount) : amount;
     return new Intl.NumberFormat("en-US", {
       style: "currency",
       currency: "USD",
     }).format(num);
   };
 
-  const getPriorityBadge = (priority: string) => {
-    const variants: Record<string, { variant: "default" | "secondary" | "destructive" | "outline"; className?: string }> = {
-      low: { variant: "secondary" },
-      medium: { variant: "default", className: "bg-yellow-500" },
-      high: { variant: "default", className: "bg-orange-500" },
-      critical: { variant: "destructive" },
-      attorney: { variant: "destructive" },
-    };
+  // Fund Card Component
+  const FundCard = ({ title, unit, fundType }: { title: string; unit: Unit; fundType: 'maintenance' | 'sa1' | 'sa2' }) => {
+    const cardTitle = fundType === 'maintenance' ? '💳 Monthly Maintenance' :
+                      fundType === 'sa1' ? '💳 SA#1 Popular Loan' :
+                      '💳 SA#2 (2024 Assessment)';
 
-    return (
-      <Badge {...variants[priority] || { variant: "outline" }} data-testid={`badge-priority-${priority}`}>
-        {priority.charAt(0).toUpperCase() + priority.slice(1)}
-      </Badge>
-    );
-  };
+    // SA#1 handling - check if loan is completely paid off or on-going
+    if (fundType === 'sa1') {
+      const loanCompletePaidOff = !unit.hasPopularLoan;
 
-  const getStatusBadge = (status: string) => {
-    const variants: Record<string, { variant: "default" | "secondary" | "destructive" | "outline"; className?: string }> = {
-      current: { variant: "default", className: "bg-green-500" },
-      pending: { variant: "default", className: "bg-yellow-500" },
-      "30-60days": { variant: "default", className: "bg-orange-500" },
-      "90plus": { variant: "destructive" },
-      attorney: { variant: "destructive" },
-    };
+      if (loanCompletePaidOff) {
+        // SA#1 is PAID OFF - show historical view
+        return (
+          <Card className="border-green-200 bg-green-50/50">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm flex items-center justify-between">
+                <span>{cardTitle}</span>
+                <Badge className="bg-green-600">✅ PAID OFF</Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Original Loan:</span>
+                  <span className="font-mono">$17,500.00</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Total Paid:</span>
+                  <span className="font-mono text-green-600">$17,500.00</span>
+                </div>
+                <Separator />
+                <div className="flex justify-between font-bold">
+                  <span>Balance:</span>
+                  <span className="font-mono text-green-600">$0.00</span>
+                </div>
+                <div className="text-xs text-green-700 mt-2 font-semibold">
+                  Loan paid off in full
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        );
+      } else {
+        // SA#1 is ON-GOING - show monthly activity
+        const priorBalance = parseFloat(unit.sa1PriorBalance);
+        const julyCharge = 208.00;
+        const julyPayment = parseFloat(unit.sa1PaymentJuly);
+        const newBalance = parseFloat(unit.sa1Balance);
+        const isPaid = unit.sa1Paid;
+        const status = isPaid ? "✅ JULY PAID" : "🚩 JULY UNPAID";
 
-    return (
-      <Badge {...variants[status] || { variant: "outline" }}>
-        {status === "30-60days" ? "30-60 Days" : status === "90plus" ? "90+ Days" : status.charAt(0).toUpperCase() + status.slice(1)}
-      </Badge>
-    );
-  };
+        return (
+          <Card className={isPaid ? "border-green-200" : "border-red-200"}>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm flex items-center justify-between">
+                <span>{cardTitle}</span>
+                <Badge variant={isPaid ? "default" : "destructive"} className={isPaid ? "bg-green-600" : ""}>
+                  {status}
+                </Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Prior Balance:</span>
+                  <span className="font-mono">{formatCurrency(priorBalance)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">July 2025 Charge:</span>
+                  <span className="font-mono text-blue-600">+ {formatCurrency(julyCharge)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">July 2025 Payment:</span>
+                  <span className="font-mono text-green-600">- {formatCurrency(julyPayment)}</span>
+                </div>
+                <Separator />
+                <div className="flex justify-between font-bold">
+                  <span>New Balance:</span>
+                  <span className={`font-mono ${newBalance === 0 ? "text-green-600" : "text-red-600"}`}>
+                    {formatCurrency(newBalance)}
+                  </span>
+                </div>
+                <div className="text-xs text-muted-foreground mt-2">
+                  $208/month until paid off
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        );
+      }
+    }
 
-  const get2024AssessmentBadge = (status: string) => {
-    const variants: Record<string, { variant: "default" | "secondary" | "destructive" | "outline"; className?: string; label?: string }> = {
-      "PAID IN FULL": { variant: "default", className: "bg-green-600", label: "✅ PAID" },
-      "3-YEAR PLAN": { variant: "default", className: "bg-blue-600", label: "📋 PLAN" },
-      "PARTIAL": { variant: "default", className: "bg-yellow-600", label: "📊 PARTIAL" },
-      "UNPAID": { variant: "destructive", label: "🚩 UNPAID" },
-      "pending": { variant: "outline", label: "Pending" },
-    };
+    // SA#2 handling - check if completely paid off or on-going
+    if (fundType === 'sa2') {
+      const remaining = parseFloat(unit.sa2RemainingBalance);
+      const isCompletePaidOff = remaining === 0 && !unit.sa2OnPaymentPlan;
 
-    const config = variants[status] || { variant: "outline", label: status };
+      if (isCompletePaidOff) {
+        // SA#2 is PAID OFF - show historical view
+        return (
+          <Card className="border-green-200 bg-green-50/50">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm flex items-center justify-between">
+                <span>{cardTitle}</span>
+                <Badge className="bg-green-600">✅ PAID OFF</Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Original Assessment:</span>
+                  <span className="font-mono">$11,920.92</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Total Paid:</span>
+                  <span className="font-mono text-green-600">$11,920.92</span>
+                </div>
+                <Separator />
+                <div className="flex justify-between font-bold">
+                  <span>Balance:</span>
+                  <span className="font-mono text-green-600">$0.00</span>
+                </div>
+                <div className="text-xs text-green-700 mt-2 font-semibold">
+                  Assessment paid in full
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        );
+      } else {
+        // SA#2 is ON-GOING - show remaining balance
+        const status = unit.sa2OnPaymentPlan ? "📋 PAYMENT PLAN" : "🚩 OWES";
+        const isPaid = false;
 
-    return (
-      <Badge {...config}>
-        {config.label}
-      </Badge>
-    );
+        return (
+          <Card className="border-red-200">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm flex items-center justify-between">
+                <span>{cardTitle}</span>
+                <Badge variant={unit.sa2OnPaymentPlan ? "default" : "destructive"} className={unit.sa2OnPaymentPlan ? "bg-blue-600" : ""}>
+                  {status}
+                </Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Original Assessment:</span>
+                  <span className="font-mono">$11,920.92</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Already Paid:</span>
+                  <span className="font-mono text-green-600">{formatCurrency(11920.92 - remaining)}</span>
+                </div>
+                <Separator />
+                <div className="flex justify-between font-bold">
+                  <span>Remaining Balance:</span>
+                  <span className="font-mono text-red-600">{formatCurrency(remaining)}</span>
+                </div>
+                {unit.sa2OnPaymentPlan && (
+                  <div className="text-xs text-blue-600 mt-2">
+                    3-Year Payment Plan (Started April 2024)
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        );
+      }
+    }
+
+    // Maintenance Fund - always monthly tracking
+    if (fundType === 'maintenance') {
+      const priorBalance = parseFloat(unit.maintenancePriorBalance);
+      const julyCharge = 578.45;
+      const julyPayment = parseFloat(unit.maintenancePaymentJuly);
+      const newBalance = parseFloat(unit.maintenanceBalance);
+      const isPaid = unit.maintenancePaid;
+      const status = isPaid ? "✅ JULY PAID" : "🚩 JULY UNPAID";
+
+      return (
+        <Card className={isPaid ? "border-green-200" : "border-red-200"}>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm flex items-center justify-between">
+              <span>{cardTitle}</span>
+              <Badge variant={isPaid ? "default" : "destructive"} className={isPaid ? "bg-green-600" : ""}>
+                {status}
+              </Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Prior Balance:</span>
+                <span className="font-mono">{formatCurrency(priorBalance)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">July 2025 Charge:</span>
+                <span className="font-mono text-blue-600">+ {formatCurrency(julyCharge)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">July 2025 Payment:</span>
+                <span className="font-mono text-green-600">- {formatCurrency(julyPayment)}</span>
+              </div>
+              <Separator />
+              <div className="flex justify-between font-bold">
+                <span>New Balance:</span>
+                <span className={`font-mono ${newBalance === 0 ? "text-green-600" : "text-red-600"}`}>
+                  {formatCurrency(newBalance)}
+                </span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      );
+    }
+
+    return null;
   };
 
   if (isLoading) {
@@ -112,11 +283,11 @@ export default function Units() {
     <div className="p-8 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold" data-testid="text-page-title">
-            Units & Owners
+          <h1 className="text-3xl font-bold">
+            Unit Owner Ledgers
           </h1>
-          <p className="text-muted-foreground">
-            Complete listing of all 24 Heritage condominium units • Financial data as of July 2025
+          <p className="text-muted-foreground mt-2 font-bold">
+            As of July 2025
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -127,220 +298,63 @@ export default function Units() {
         </div>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Unit Financial Status</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Unit</TableHead>
-                  <TableHead className="text-right">Monthly Maint.</TableHead>
-                  <TableHead className="text-right">Popular Loan</TableHead>
-                  <TableHead className="text-right">2024 Assessment</TableHead>
-                  <TableHead className="text-right">Total Owed</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Priority</TableHead>
-                  <TableHead>Notes</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {units?.map((unit) => (
-                  <TableRow key={unit.id} data-testid={`row-unit-${unit.unitNumber}`}>
-                    <TableCell className="font-medium" data-testid={`text-unit-number-${unit.unitNumber}`}>
-                      {unit.unitNumber}
-                    </TableCell>
-                    <TableCell className="text-right font-mono" data-testid={`text-monthly-maint-${unit.unitNumber}`}>
-                      {formatCurrency(unit.monthlyMaintenance)}
-                    </TableCell>
-                    <TableCell className="text-right font-mono">
-                      {parseFloat(unit.monthlyPopularLoan || "0") > 0
-                        ? formatCurrency(unit.monthlyPopularLoan)
-                        : "-"
-                      }
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {/* 2024 Assessment Logic - FIXED */}
-                      {(() => {
-                        // If paid in full
-                        if (unit.assessment2024Status === "PAID IN FULL") {
-                          return <span className="text-green-600 font-semibold">✅ PAID</span>;
-                        }
-
-                        // If never made ANY payment (red flags)
-                        const paidAmount = parseFloat(unit.assessment2024Paid || "0");
-                        if (paidAmount === 0) {
-                          return (
-                            <span className="text-red-600 font-semibold">
-                              $11,920.92 🚩
-                            </span>
-                          );
-                        }
-
-                        // If on payment plan or making partial payments
-                        const remaining = parseFloat(unit.assessment2024Remaining || "0");
-                        if (remaining > 0) {
-                          // On 3-year plan (Units 202, 203)
-                          if (unit.onAssessmentPlan) {
-                            return (
-                              <span className="text-blue-600 font-mono">
-                                {formatCurrency(unit.assessment2024Remaining)} (Plan)
-                              </span>
-                            );
-                          }
-
-                          // Partial payment (other units)
-                          return (
-                            <span className="font-mono">
-                              {formatCurrency(unit.assessment2024Remaining)}
-                            </span>
-                          );
-                        }
-
-                        return <span className="text-muted-foreground">-</span>;
-                      })()}
-                    </TableCell>
-                    <TableCell className="text-right font-mono" data-testid={`text-total-owed-${unit.unitNumber}`}>
-                      {formatCurrency(unit.totalOwed)}
-                    </TableCell>
-                    <TableCell>
-                      {getStatusBadge(unit.delinquencyStatus)}
-                    </TableCell>
-                    <TableCell>
-                      {getPriorityBadge(unit.priorityLevel)}
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground max-w-xs truncate">
-                      {unit.notes || "-"}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+      {/* Assessment Reference - Sticky Header */}
+      <div className="sticky top-0 z-10 bg-blue-50 border-b-2 border-blue-200 p-4 mb-6">
+        {/* Condensed version with just the key numbers */}
+        <div className="flex items-center justify-between max-w-7xl mx-auto">
+          <div className="font-bold text-gray-800">Assessment Reference:</div>
+          <div className="flex gap-6 text-sm">
+            <div>
+              <span className="text-gray-600">SA#1 Original:</span>
+              <span className="font-bold ml-2">$17,500</span>
+              <span className="text-blue-600 ml-2">($208/mo)</span>
+            </div>
+            <div className="border-l pl-6">
+              <span className="text-gray-600">SA#2 Original:</span>
+              <span className="font-bold ml-2">$11,920.92</span>
+            </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm">By Priority Level</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <div className="flex justify-between items-center">
-              <span className="text-sm">Attorney</span>
-              <Badge variant="destructive">
-                {units?.filter(u => u.priorityLevel === "attorney").length || 0}
-              </Badge>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm">Critical</span>
-              <Badge variant="destructive">
-                {units?.filter(u => u.priorityLevel === "critical").length || 0}
-              </Badge>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm">High</span>
-              <Badge className="bg-orange-500">
-                {units?.filter(u => u.priorityLevel === "high").length || 0}
-              </Badge>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm">Medium</span>
-              <Badge className="bg-yellow-500">
-                {units?.filter(u => u.priorityLevel === "medium").length || 0}
-              </Badge>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm">Low</span>
-              <Badge variant="secondary">
-                {units?.filter(u => u.priorityLevel === "low").length || 0}
-              </Badge>
-            </div>
-          </CardContent>
-        </Card>
+      {/* Units Grid - Each unit shows 3 separate fund cards */}
+      <div className="space-y-8">
+        {units?.map((unit) => (
+          <Card key={unit.id} className={unit.redFlag ? "border-l-4 border-l-red-500" : ""}>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  {unit.redFlag && <AlertCircle className="h-5 w-5 text-red-600" />}
+                  <div>
+                    <CardTitle className="text-xl">Unit {unit.unitNumber}</CardTitle>
+                    <p className="text-sm text-muted-foreground mt-1">{unit.notes}</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="text-sm text-muted-foreground">TOTAL AMOUNT DUE</div>
+                  <div className={`text-2xl font-bold ${
+                    parseFloat(unit.totalOwed) < 0 ? "text-green-600" :
+                    parseFloat(unit.totalOwed) > 10000 ? "text-red-600" : ""
+                  }`}>
+                    {formatCurrency(unit.totalOwed)}
+                  </div>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* Card 1: Maintenance */}
+                <FundCard title="Monthly Maintenance" unit={unit} fundType="maintenance" />
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm">By Delinquency Status</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <div className="flex justify-between items-center">
-              <span className="text-sm">Current</span>
-              <Badge className="bg-green-500">
-                {units?.filter(u => u.delinquencyStatus === "current").length || 0}
-              </Badge>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm">Pending</span>
-              <Badge className="bg-yellow-500">
-                {units?.filter(u => u.delinquencyStatus === "pending").length || 0}
-              </Badge>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm">30-60 Days</span>
-              <Badge className="bg-orange-500">
-                {units?.filter(u => u.delinquencyStatus === "30-60days").length || 0}
-              </Badge>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm">90+ Days</span>
-              <Badge variant="destructive">
-                {units?.filter(u => u.delinquencyStatus === "90plus").length || 0}
-              </Badge>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm">Attorney</span>
-              <Badge variant="destructive">
-                {units?.filter(u => u.delinquencyStatus === "attorney").length || 0}
-              </Badge>
-            </div>
-          </CardContent>
-        </Card>
+                {/* Card 2: SA#1 Popular Loan */}
+                <FundCard title="SA#1 Popular Loan" unit={unit} fundType="sa1" />
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm">2024 Assessment Status</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <div className="flex justify-between items-center">
-              <span className="text-sm flex items-center gap-1">
-                ✅ Paid in Full
-              </span>
-              <Badge className="bg-green-600">
-                {units?.filter(u => u.assessment2024Status === "PAID IN FULL").length || 0}
-              </Badge>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm flex items-center gap-1">
-                📋 3-Year Plan
-              </span>
-              <Badge className="bg-blue-600">
-                {units?.filter(u => u.assessment2024Status === "3-YEAR PLAN").length || 0}
-              </Badge>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm flex items-center gap-1">
-                📊 Partial Payment
-              </span>
-              <Badge className="bg-yellow-600">
-                {units?.filter(u => u.assessment2024Status === "PARTIAL").length || 0}
-              </Badge>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm flex items-center gap-1">
-                🚩 Unpaid
-              </span>
-              <Badge variant="destructive">
-                {units?.filter(u => u.assessment2024Status === "UNPAID").length || 0}
-              </Badge>
-            </div>
-            <div className="pt-2 border-t text-xs text-muted-foreground">
-              Total Assessed: $286,102.08
-            </div>
-          </CardContent>
-        </Card>
+                {/* Card 3: SA#2 (2024 Assessment) */}
+                <FundCard title="SA#2 (2024 Assessment)" unit={unit} fundType="sa2" />
+              </div>
+            </CardContent>
+          </Card>
+        ))}
       </div>
     </div>
   );

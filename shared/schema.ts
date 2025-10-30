@@ -46,6 +46,41 @@ export const units = pgTable("units", {
   assessmentPlanMonthsTotal: integer("assessment_plan_months_total").default(0),
   assessmentPlanMonthsCompleted: integer("assessment_plan_months_completed").default(0),
 
+  // ===== SA#1 (POPULAR LOAN) TRACKING =====
+  sa1OriginalBalance: decimal("sa1_original_balance", { precision: 10, scale: 2 }).notNull().default("17500.00"),
+  sa1MonthlyCharge: decimal("sa1_monthly_charge", { precision: 10, scale: 2 }).notNull().default("0"),
+  sa1PaidJuly: boolean("sa1_paid_july").notNull().default(false),
+  sa1Status: text("sa1_status").notNull().default("Paid Off"), // 'On-going', 'Paid Off'
+
+  // ===== SA#2 (2024 ASSESSMENT) DETAILED TRACKING =====
+  sa2OriginalBalance: decimal("sa2_original_balance", { precision: 10, scale: 2 }).notNull().default("11920.92"),
+  sa2RemainingBalance: decimal("sa2_remaining_balance", { precision: 10, scale: 2 }).notNull().default("0"),
+  sa2Status: text("sa2_status").notNull().default("Paid Off"), // 'On-going', 'Paid Off', 'Delinquent'
+  sa2OnPaymentPlan: boolean("sa2_on_payment_plan").notNull().default(false),
+
+  // ===== MONTHLY DUES TOTAL =====
+  totalMonthlyDue: decimal("total_monthly_due", { precision: 10, scale: 2 }).notNull().default("0"),
+
+  // ===== STATUS FLAGS =====
+  delinquent: boolean("delinquent").notNull().default(false),
+
+  // ===== SEPARATE FUND TRACKING (Emergency Fix for Fund Co-Mingling) =====
+  // 💳 MAINTENANCE FUND
+  maintenancePriorBalance: decimal("maintenance_prior_balance", { precision: 10, scale: 2 }).notNull().default("0"),
+  maintenancePaymentJuly: decimal("maintenance_payment_july", { precision: 10, scale: 2 }).notNull().default("0"),
+  maintenanceBalance: decimal("maintenance_balance", { precision: 10, scale: 2 }).notNull().default("0"),
+  maintenancePaid: boolean("maintenance_paid").notNull().default(false),
+
+  // 💳 SA#1 POPULAR LOAN FUND
+  hasPopularLoan: boolean("has_popular_loan").notNull().default(false),
+  sa1PriorBalance: decimal("sa1_prior_balance", { precision: 10, scale: 2 }).notNull().default("0"),
+  sa1PaymentJuly: decimal("sa1_payment_july", { precision: 10, scale: 2 }).notNull().default("0"),
+  sa1Balance: decimal("sa1_balance", { precision: 10, scale: 2 }).notNull().default("0"),
+  sa1Paid: boolean("sa1_paid").notNull().default(false),
+
+  // 💳 SA#2 (2024 ASSESSMENT) FUND
+  sa2PaymentJuly: decimal("sa2_payment_july", { precision: 10, scale: 2 }).notNull().default("0"),
+
   // ===== LEGACY FIELDS (keep for backward compatibility) =====
   firstAssessmentStatus: text("first_assessment_status").notNull(), // 'paid', 'paying', 'owed'
   firstAssessmentBalance: decimal("first_assessment_balance", { precision: 10, scale: 2 }).notNull().default("0"),
@@ -218,6 +253,32 @@ export const notifications = pgTable("notifications", {
   message: text("message").notNull(),
   isRead: boolean("is_read").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Report Imports table (tracks import batches for audit trail)
+export const reportImports = pgTable("report_imports", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  vendor: text("vendor").notNull(), // 'Juda Eskew', etc.
+  periodMonth: integer("period_month").notNull(), // 1-12
+  periodYear: integer("period_year").notNull(), // 2020+
+  filename: text("filename"),
+  importedBy: varchar("imported_by").notNull(),
+  importedAt: timestamp("imported_at").notNull().defaultNow(),
+  notes: text("notes"),
+});
+
+// Popular Loans table (tracks Popular Bank loans per unit)
+export const popularLoans = pgTable("popular_loans", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  unit: varchar("unit", { length: 10 }).notNull(), // "201", "202", etc.
+  loanNumber: text("loan_number"), // "PB-12345", can be null for paid-off
+  lender: text("lender").notNull().default("Popular Bank"),
+  status: text("status").notNull(), // 'OWES', 'PAID'
+  currentBalance: decimal("current_balance", { precision: 12, scale: 2 }).notNull().default("0"),
+  lastPaymentDate: timestamp("last_payment_date"),
+  sourceReportId: varchar("source_report_id"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
 // Bank Accounts table (for financial reporting - tracks all bank accounts and reconciliations)
@@ -482,6 +543,17 @@ export const insertNotificationSchema = createInsertSchema(notifications).omit({
   createdAt: true,
 });
 
+export const insertReportImportSchema = createInsertSchema(reportImports).omit({
+  id: true,
+  importedAt: true,
+});
+
+export const insertPopularLoanSchema = createInsertSchema(popularLoans).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 export const insertBankAccountSchema = createInsertSchema(bankAccounts).omit({
   id: true,
   createdAt: true,
@@ -595,6 +667,12 @@ export type BoardAction = typeof boardActions.$inferSelect;
 
 export type InsertNotification = z.infer<typeof insertNotificationSchema>;
 export type Notification = typeof notifications.$inferSelect;
+
+export type InsertReportImport = z.infer<typeof insertReportImportSchema>;
+export type ReportImport = typeof reportImports.$inferSelect;
+
+export type InsertPopularLoan = z.infer<typeof insertPopularLoanSchema>;
+export type PopularLoan = typeof popularLoans.$inferSelect;
 
 export type InsertBankAccount = z.infer<typeof insertBankAccountSchema>;
 export type BankAccount = typeof bankAccounts.$inferSelect;
