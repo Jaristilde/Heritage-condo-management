@@ -16,7 +16,8 @@
     "seed:units": "tsx scripts/seed-units-and-owners.ts",
     "seed:board": "tsx scripts/seed-board-member.ts",
     "seed:financials": "tsx scripts/seed-july-2025-financials.ts",
-    "seed:all": "npm run seed:banks && npm run seed:assessments && npm run seed:units && npm run seed:users && npm run seed:board && npm run seed:financials"
+    "seed:all": "npm run seed:banks && npm run seed:assessments && npm run seed:units && npm run seed:users && npm run seed:board && npm run seed:financials",
+    "import:prior-balances": "tsx scripts/import-maintenance-prior-balances.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.37.0",

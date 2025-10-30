@@ -33,6 +33,7 @@ import Documents from "@/pages/documents";
 import Reports from "@/pages/reports";
 import Budgets from "@/pages/budgets";
 import ImportFinancialData from "@/pages/import-financial-data";
+import Settings from "@/pages/settings";
 
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
   if (!isAuthenticated()) {
@@ -90,7 +91,7 @@ function AuthenticatedLayout() {
                   <Route path="/documents" component={() => <ProtectedRoute component={Documents} />} />
                   <Route path="/budgets" component={() => <ProtectedRoute component={Budgets} />} />
                   <Route path="/import-financial-data" component={() => <ProtectedRoute component={ImportFinancialData} />} />
-                  <Route path="/settings" component={() => <ProtectedRoute component={NotFound} />} />
+                  <Route path="/settings" component={() => <ProtectedRoute component={Settings} />} />
                 </>
               )}
               <Route component={NotFound} />
