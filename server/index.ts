@@ -8,13 +8,29 @@ import { initializeCronJobs } from "./services/cron-jobs";
 const app = express();
 
 // Enable CORS for all routes
+const allowedOrigins = [
+  "http://localhost:5000",
+  "http://localhost:5001",
+  "https://heritage-condo-management-north-miami.netlify.app",
+  process.env.FRONTEND_URL, // Allow dynamic frontend URL from env
+].filter(Boolean); // Remove any undefined values
+
 app.use(
   cors({
-    origin: [
-      "http://localhost:5000",
-      "https://heritage-condo-management-north-miami.netlify.app",
-    ],
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like mobile apps, Postman, curl)
+      if (!origin) return callback(null, true);
+
+      if (allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        console.log(`⚠️ Blocked CORS request from: ${origin}`);
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
   }));
 
 declare module "http" {
