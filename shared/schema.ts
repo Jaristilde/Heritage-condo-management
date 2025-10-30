@@ -26,8 +26,7 @@ export const units = pgTable("units", {
   monthlyPopularLoan: decimal("monthly_popular_loan", { precision: 10, scale: 2 }).notNull().default("0"),
   monthlyAssessmentPlan: decimal("monthly_assessment_plan", { precision: 10, scale: 2 }).notNull().default("0"),
 
-  // ===== CURRENT BALANCES =====
-  maintenanceBalance: decimal("maintenance_balance", { precision: 10, scale: 2 }).notNull().default("0"),
+  // ===== CURRENT BALANCES (LEGACY - see SEPARATE FUND TRACKING below) =====
   popularLoanBalance: decimal("popular_loan_balance", { precision: 10, scale: 2 }).notNull().default("0"),
   creditBalance: decimal("credit_balance", { precision: 10, scale: 2 }).notNull().default("0"), // Negative = owner has credit
   totalOwed: decimal("total_owed", { precision: 10, scale: 2 }).notNull().default("0"),
@@ -79,7 +78,10 @@ export const units = pgTable("units", {
   sa1Paid: boolean("sa1_paid").notNull().default(false),
 
   // 💳 SA#2 (2024 ASSESSMENT) FUND
+  sa2PriorBalance: decimal("sa2_prior_balance", { precision: 10, scale: 2 }).notNull().default("0"),
   sa2PaymentJuly: decimal("sa2_payment_july", { precision: 10, scale: 2 }).notNull().default("0"),
+  sa2Balance: decimal("sa2_balance", { precision: 10, scale: 2 }).notNull().default("0"),
+  sa2Paid: boolean("sa2_paid").notNull().default(false),
 
   // ===== LEGACY FIELDS (keep for backward compatibility) =====
   firstAssessmentStatus: text("first_assessment_status").notNull(), // 'paid', 'paying', 'owed'
