@@ -596,7 +596,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const vendor = await storage.getVendor(invoice.vendorId);
           const vendorName = vendor?.vendorName || 'Unknown Vendor';
 
-          // Create notifications for each board member
+          // Create in-app notifications for each board member
           for (const boardMember of boardMembers) {
             await storage.createNotification({
               userId: boardMember.id,
@@ -605,6 +605,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
               message: `A new invoice from ${vendorName} for $${invoice.amount} has been uploaded and requires your approval.`,
               isRead: false,
             });
+          }
+
+          // Send email notifications
+          const { sendInvoiceApprovalRequest } = await import('./services/invoice-notifier');
+          const boardMemberEmails = boardMembers
+            .filter((u: any) => u.email)
+            .map((u: any) => u.email);
+
+          if (boardMemberEmails.length > 0) {
+            await sendInvoiceApprovalRequest({
+              vendorName,
+              invoiceNumber: invoice.invoiceNumber || invoice.id,
+              amount: invoice.amount,
+              invoiceDate: invoice.invoiceDate,
+              dueDate: invoice.dueDate,
+              description: invoice.description || undefined,
+              boardMemberEmails,
+            });
+            console.log(`📧 Email notifications sent to ${boardMemberEmails.length} board members`);
           }
 
           console.log(`✅ Notified ${boardMembers.length} board members about new invoice`);
