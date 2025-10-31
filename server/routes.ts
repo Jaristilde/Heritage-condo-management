@@ -696,15 +696,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const invoice = await storage.updateInvoice(req.params.id, {
         status: 'approved',
         approvedBy: userPayload.userId,
-        approvedAt: new Date().toISOString(),
+        approvedAt: new Date(),
       });
 
       if (!invoice) {
         return res.status(404).json({ error: "Invoice not found" });
       }
 
+      // Log the approval action to board_actions for history tracking
+      await storage.createBoardAction({
+        actionType: 'invoice_approval',
+        description: `Approved invoice ${invoice.invoiceNumber || invoice.id} for $${invoice.amount}`,
+        relatedTo: 'invoice',
+        relatedId: invoice.id,
+        approvedBy: userPayload.userId,
+        status: 'approved',
+      });
+
       res.json(invoice);
     } catch (error) {
+      console.error("Error approving invoice:", error);
       res.status(500).json({ error: "Server error" });
     }
   });
@@ -722,7 +733,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const invoice = await storage.updateInvoice(req.params.id, {
         status: 'rejected',
         rejectedBy: userPayload.userId,
-        rejectedAt: new Date().toISOString(),
+        rejectedAt: new Date(),
         rejectionReason: reason,
       });
 
@@ -730,8 +741,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Invoice not found" });
       }
 
+      // Log the rejection action to board_actions for history tracking
+      await storage.createBoardAction({
+        actionType: 'invoice_rejection',
+        description: `Rejected invoice ${invoice.invoiceNumber || invoice.id} for $${invoice.amount}. Reason: ${reason}`,
+        relatedTo: 'invoice',
+        relatedId: invoice.id,
+        approvedBy: userPayload.userId,
+        status: 'rejected',
+      });
+
       res.json(invoice);
     } catch (error) {
+      console.error("Error rejecting invoice:", error);
       res.status(500).json({ error: "Server error" });
     }
   });

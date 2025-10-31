@@ -31,7 +31,17 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, Search, Pencil, Trash2, FileText, ExternalLink, CheckCircle } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Plus, Search, Pencil, Trash2, FileText, ExternalLink, CheckCircle, XCircle } from "lucide-react";
 import { format } from "date-fns";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -66,6 +76,8 @@ export default function Invoices() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [invoiceToDelete, setInvoiceToDelete] = useState<Invoice | null>(null);
+  const [invoiceToReject, setInvoiceToReject] = useState<Invoice | null>(null);
+  const [rejectionReason, setRejectionReason] = useState("");
   const { toast } = useToast();
 
   const { data: invoices, isLoading: invoicesLoading } = useQuery<Invoice[]>({
@@ -113,6 +125,28 @@ export default function Invoices() {
       toast({
         title: "Error",
         description: "Failed to approve invoice",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const rejectMutation = useMutation({
+    mutationFn: async ({ invoiceId, reason }: { invoiceId: string; reason: string }) => {
+      return apiRequest("POST", `/api/invoices/${invoiceId}/reject`, { reason });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/invoices"] });
+      toast({
+        title: "Success",
+        description: "Invoice rejected successfully",
+      });
+      setInvoiceToReject(null);
+      setRejectionReason("");
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to reject invoice",
         variant: "destructive",
       });
     },
@@ -286,15 +320,25 @@ export default function Invoices() {
                             </Button>
                           )}
                           {isBoardMember && invoice.status === 'pending' && (
-                            <Button
-                              variant="default"
-                              size="sm"
-                              onClick={() => approveMutation.mutate(invoice.id)}
-                              disabled={approveMutation.isPending}
-                            >
-                              <CheckCircle className="h-4 w-4 mr-1" />
-                              Approve
-                            </Button>
+                            <>
+                              <Button
+                                variant="default"
+                                size="sm"
+                                onClick={() => approveMutation.mutate(invoice.id)}
+                                disabled={approveMutation.isPending}
+                              >
+                                <CheckCircle className="h-4 w-4 mr-1" />
+                                Approve
+                              </Button>
+                              <Button
+                                variant="destructive"
+                                size="sm"
+                                onClick={() => setInvoiceToReject(invoice)}
+                              >
+                                <XCircle className="h-4 w-4 mr-1" />
+                                Reject
+                              </Button>
+                            </>
                           )}
                           <Link href={`/invoices/${invoice.id}`}>
                             <Button variant="ghost" size="sm">
@@ -345,6 +389,66 @@ export default function Invoices() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={!!invoiceToReject} onOpenChange={() => {
+        setInvoiceToReject(null);
+        setRejectionReason("");
+      }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reject Invoice</DialogTitle>
+            <DialogDescription>
+              Please provide a reason for rejecting invoice {invoiceToReject?.invoiceNumber || 'this invoice'}.
+              This will be recorded in the invoice history.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="rejection-reason">Rejection Reason *</Label>
+              <Textarea
+                id="rejection-reason"
+                placeholder="Enter the reason for rejection..."
+                value={rejectionReason}
+                onChange={(e) => setRejectionReason(e.target.value)}
+                className="min-h-[100px]"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setInvoiceToReject(null);
+                setRejectionReason("");
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                if (!rejectionReason.trim()) {
+                  toast({
+                    title: "Error",
+                    description: "Please provide a rejection reason",
+                    variant: "destructive",
+                  });
+                  return;
+                }
+                if (invoiceToReject) {
+                  rejectMutation.mutate({
+                    invoiceId: invoiceToReject.id,
+                    reason: rejectionReason,
+                  });
+                }
+              }}
+              disabled={rejectMutation.isPending || !rejectionReason.trim()}
+            >
+              {rejectMutation.isPending ? "Rejecting..." : "Reject Invoice"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
