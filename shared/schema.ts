@@ -9,10 +9,12 @@ export const users = pgTable("users", {
   username: text("username").notNull().unique(),
   password: text("password").notNull(), // BCrypt hashed password
   email: text("email").notNull().unique(),
+  phone: text("phone"), // Mobile phone for SMS notifications
   role: text("role").notNull(), // 'super_admin', 'board_secretary', 'board_treasurer', 'board_member', 'management', 'owner'
   unitId: varchar("unit_id"),
   active: boolean("active").notNull().default(true),
   mustChangePassword: boolean("must_change_password").notNull().default(false),
+  smsNotifications: boolean("sms_notifications").notNull().default(false), // Opt-in for SMS
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

@@ -626,7 +626,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
             console.log(`📧 Email notifications sent to ${boardMemberEmails.length} board members`);
           }
 
-          console.log(`✅ Notified ${boardMembers.length} board members about new invoice`);
+          // Send SMS notifications (if enabled)
+          const { sendInvoiceApprovalSMS } = await import('./services/sms-notifier');
+          const boardMemberPhones = boardMembers
+            .filter((u: any) => u.phone && u.smsNotifications)
+            .map((u: any) => u.phone);
+
+          if (boardMemberPhones.length > 0) {
+            await sendInvoiceApprovalSMS({
+              vendorName,
+              invoiceNumber: invoice.invoiceNumber || invoice.id,
+              amount: invoice.amount,
+              boardMemberPhones,
+            });
+            console.log(`📱 SMS notifications sent to ${boardMemberPhones.length} board members`);
+          }
+
+          console.log(`✅ Notified ${boardMembers.length} board members about new invoice (${boardMemberEmails.length} emails, ${boardMemberPhones.length} SMS)`);
         } catch (notificationError) {
           console.error('Failed to send notifications:', notificationError);
           // Don't fail the request if notifications fail

@@ -1,0 +1,37 @@
+import { Handler } from "@netlify/functions";
+import { Resend } from "resend";
+
+const resend = new Resend(process.env.RESEND_API_KEY!);
+const FROM = "Heritage Notices <notices@heritagecondo.com>"; // must match your verified Resend domain
+
+export const handler: Handler = async (event) => {
+  try {
+    const { invoiceId, vendorName, boardUser, to } = JSON.parse(event.body || "{}");
+    if (!to) throw new Error("Missing recipient email");
+
+    const html = `
+      <p>Invoice <b>#${invoiceId}</b> for <b>${vendorName}</b> was <b>APPROVED</b>.</p>
+      <p>Approved by: ${boardUser}</p>
+    `;
+
+    const { data, error } = await resend.emails.send({
+      from: FROM,
+      to: [to],
+      subject: `Invoice #${invoiceId} Approved`,
+      html,
+    });
+
+    if (error) throw error;
+
+    return {
+      statusCode: 200,
+      body: JSON.stringify({ ok: true, id: data?.id }),
+    };
+  } catch (err: any) {
+    console.error("notify-approve failed:", err);
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ ok: false, error: err.message }),
+    };
+  }
+};
