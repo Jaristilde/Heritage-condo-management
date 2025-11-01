@@ -1,8 +1,8 @@
 # Heritage Condo Management - AI Agent System Usage Guide
 
-## 🤖 Complete Agent System (18 Agents)
+## 🤖 Complete Agent System (20 Agents)
 
-All 18 specialized AI agents are now available to help you manage Heritage Condominium Association.
+All 20 specialized AI agents are now available to help you manage Heritage Condominium Association.
 
 ---
 
@@ -233,6 +233,30 @@ Example:
 /data-import-export Bulk update unit data from CSV
 ```
 
+#### 19. `/cpa-agent` - Accounting Best Practices & GAAP Compliance 💼
+**When to use**: GAAP compliance, CPA-ready reports, tax preparation, payment processing, bank integration
+
+**Examples**:
+```bash
+/cpa-agent Generate CPA-ready monthly financial statements for October 2025
+/cpa-agent Prepare year-end financial package for 2025 tax filing
+/cpa-agent Verify payment allocation follows FL Statute 718.116 for Unit 305
+/cpa-agent Reconcile October bank statements and identify discrepancies
+/cpa-agent Generate 1099-NEC report for all vendors over $600 in 2025
+```
+
+#### 20. `/cybersecurity-agent` - Application Security & Compliance 🔒
+**When to use**: Security audits, vulnerability scanning, PII/PHI compliance, security best practices
+
+**Examples**:
+```bash
+/cybersecurity-agent Perform comprehensive security audit of entire application
+/cybersecurity-agent Scan codebase for SQL injection, XSS, and CSRF vulnerabilities
+/cybersecurity-agent Audit application for PII protection and compliance
+/cybersecurity-agent Review authentication system for security weaknesses
+/cybersecurity-agent Check all npm dependencies for known vulnerabilities
+```
+
 ---
 
 ## 🎬 Common Workflows
@@ -279,6 +303,26 @@ Example:
 /email-notification Send budget draft to board
 ```
 
+### **Workflow 5: Year-End Tax Preparation**
+```bash
+# Year-end CPA package
+/cpa-agent Prepare year-end financial package for 2025 tax filing
+/cpa-agent Generate 1099-NEC report for all vendors over $600
+/cpa-agent Reconcile all bank accounts for December 2025
+/reporting Generate annual financial statements
+/email-notification Send tax package to CPA firm
+```
+
+### **Workflow 6: Security Audit**
+```bash
+# Quarterly security review
+/cybersecurity-agent Perform comprehensive security audit
+/cybersecurity-agent Check npm dependencies for vulnerabilities
+/cybersecurity-agent Audit PII protection compliance
+/cybersecurity-agent Review authentication and authorization
+/architecture-agent Implement security recommendations
+```
+
 ---
 
 ## 💡 Best Practices
@@ -306,6 +350,20 @@ Example:
 - Reviewing code changes
 - Optimizing performance
 - Database schema changes
+
+**💼 Use cpa-agent when**:
+- Preparing monthly/annual financial reports
+- Tax preparation and 1099 generation
+- Verifying GAAP compliance
+- Bank reconciliation
+- Year-end close procedures
+
+**🔒 Use cybersecurity-agent when**:
+- Conducting security audits
+- Checking for vulnerabilities
+- Validating PII/PHI compliance
+- Reviewing authentication/authorization
+- Assessing third-party integrations
 
 ### **Agent Communication**
 
@@ -402,7 +460,7 @@ The Meta Agent tracks:
 
 ---
 
-## ✅ All 18 Agents Summary
+## ✅ All 20 Agents Summary
 
 | # | Agent | Priority | Use Case |
 |---|-------|----------|----------|
@@ -424,9 +482,11 @@ The Meta Agent tracks:
 | 16 | document-management | 🟢 Medium | File organization |
 | 17 | automation-cron | 🟢 Medium | Scheduled jobs |
 | 18 | data-import-export | 🟢 Medium | Data migration |
+| 19 | cpa-agent | 🔴 Critical | GAAP compliance, CPA reports |
+| 20 | cybersecurity-agent | 🔴 Critical | Security, PII/PHI compliance |
 
 ---
 
 **Built for**: Heritage Condominium Association, North Miami, FL
-**Status**: ✅ All 18 agents operational and ready to use
+**Status**: ✅ All 20 agents operational and ready to use
 **Support**: Use `/meta-agent` for debugging any issues
