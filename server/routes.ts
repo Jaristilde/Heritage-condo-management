@@ -200,6 +200,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Token refresh endpoint - extends session for active users
+  app.post("/api/auth/refresh", authMiddleware, async (req, res) => {
+    try {
+      const userPayload = (req as any).user;
+
+      // Generate new access token with fresh 90-day expiration
+      const newToken = generateToken({
+        userId: userPayload.userId,
+        username: userPayload.username,
+        role: userPayload.role,
+        unitId: userPayload.unitId,
+      });
+
+      console.log(`🔄 Token refreshed for user: ${userPayload.username}`);
+
+      res.json({
+        token: newToken,
+        expiresIn: '90d',
+        message: 'Token refreshed successfully'
+      });
+    } catch (error: any) {
+      console.error("❌ Token refresh error:", error);
+      res.status(401).json({ error: "Token refresh failed" });
+    }
+  });
+
   app.post("/api/auth/change-password-required", authMiddleware, async (req, res) => {
     try {
       const userPayload = (req as any).user;

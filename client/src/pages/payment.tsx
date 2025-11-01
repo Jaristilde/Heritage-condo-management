@@ -59,10 +59,20 @@ export default function Payment() {
   const [paymentDate, setPaymentDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [showConfirmModal, setShowConfirmModal] = useState(false);
 
+  // ✅ ALL HOOKS AT THE TOP - BEFORE ANY RETURNS
   // Fetch unit data
   const { data: units, isLoading } = useQuery<Unit[]>({
     queryKey: ["/api/units"],
   });
+
+  // Fetch recent payments - moved to top with enabled flag
+  const { data: recentPayments } = useQuery<Payment[]>({
+    queryKey: ["/api/payments"],
+    select: (data) => data.slice(0, 3), // Show only 3 most recent
+    enabled: !!user && !!units, // ✅ Only run when user and units exist
+  });
+
+  // ✅ NOW IT'S SAFE TO DO CONDITIONAL RENDERING
 
   // 1. CHECK LOADING FIRST
   if (isLoading) {
@@ -119,12 +129,6 @@ export default function Payment() {
   }
 
   // 6. NOW IT'S SAFE TO ACCESS unit.id, unit.balance, etc.
-
-  // Fetch recent payments
-  const { data: recentPayments } = useQuery<Payment[]>({
-    queryKey: ["/api/payments"],
-    select: (data) => data.slice(0, 3), // Show only 3 most recent
-  });
 
   // Calculate days past due
   const calculateDaysPastDue = () => {
