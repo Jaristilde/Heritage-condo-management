@@ -115,9 +115,9 @@ export default function OwnerProfile() {
 
   // 6. NOW IT'S SAFE TO ACCESS unit properties
 
-  // Initialize form data when unit data loads
+  // Initialize form data when unit data loads (only once)
   useEffect(() => {
-    if (unit) {
+    if (unit && !isEditing) {
       setFormData({
         ownerName: unit.ownerName || "",
         email: unit.ownerEmail || user?.email || "",
@@ -125,7 +125,8 @@ export default function OwnerProfile() {
         username: user?.username || "",
       });
     }
-  }, [unit, user]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [unit?.id, user?.id]);
 
   // Update profile mutation
   const updateProfile = useMutation({
