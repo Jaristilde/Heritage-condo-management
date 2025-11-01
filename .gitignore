@@ -16,3 +16,7 @@ uploads/
 .env.test
 **/.env
 **/.env.*
+
+# EXCEPT .env.example which is safe to commit (no real secrets)
+!.env.example
+!**/.env.example
