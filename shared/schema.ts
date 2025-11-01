@@ -91,6 +91,12 @@ export const units = pgTable("units", {
   secondAssessmentStatus: text("second_assessment_status").notNull(), // 'paid', 'plan', 'owed', 'attorney'
   secondAssessmentBalance: decimal("second_assessment_balance", { precision: 10, scale: 2 }).notNull().default("0"),
 
+  // ===== OWNER INFORMATION =====
+  ownerName: text("owner_name"),
+  ownerEmail: text("owner_email"),
+  ownerPhone: text("owner_phone"),
+  ownerMailingAddress: text("owner_mailing_address"),
+
   // ===== STATUS & METADATA =====
   delinquencyStatus: text("delinquency_status").notNull(), // 'current', 'pending', '30-60days', '90plus', 'attorney'
   priorityLevel: text("priority_level").notNull(), // 'low', 'medium', 'high', 'critical', 'attorney'
