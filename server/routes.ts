@@ -30,7 +30,11 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  
+
+  // Admin emergency routes (must be first, before auth middleware)
+  const adminRoutes = (await import("./admin-routes")).default;
+  app.use("/api/admin", adminRoutes);
+
   // Authentication routes
   app.post("/api/auth/register", async (req, res) => {
     try {
