@@ -142,15 +142,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { username, password } = req.body;
 
+      console.log(`🔐 Login attempt for username: ${username}`);
+
+      if (!username || !password) {
+        console.log("❌ Missing username or password");
+        return res.status(400).json({ error: "Username and password are required" });
+      }
+
       const user = await storage.getUserByUsername(username);
       if (!user) {
+        console.log(`❌ User not found: ${username}`);
         return res.status(401).json({ error: "Invalid credentials" });
+      }
+
+      console.log(`✅ User found: ${username}, role: ${user.role}, active: ${user.active}`);
+
+      if (!user.active) {
+        console.log(`❌ User account is inactive: ${username}`);
+        return res.status(401).json({ error: "Account is inactive. Please contact the board." });
       }
 
       const isValid = await verifyPassword(password, user.password);
       if (!isValid) {
+        console.log(`❌ Invalid password for user: ${username}`);
         return res.status(401).json({ error: "Invalid credentials" });
       }
+
+      console.log(`✅ Password verified for user: ${username}`);
 
       const token = generateToken({
         userId: user.id,
@@ -158,6 +176,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         role: user.role,
         unitId: user.unitId || undefined,
       });
+
+      console.log(`✅ Login successful for user: ${username}`);
 
       res.json({
         user: {
@@ -170,8 +190,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         },
         token,
       });
-    } catch (error) {
-      res.status(400).json({ error: "Invalid request" });
+    } catch (error: any) {
+      console.error("❌ Login error:", error);
+      res.status(400).json({ error: error.message || "Invalid request" });
     }
   });
 
